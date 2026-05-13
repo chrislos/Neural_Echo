@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Head Tracker</title>
+  <style>
+    body { margin: 0; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: monospace; color: #fff; }
+    canvas { display: block; }
+    #values { margin-top: 16px; font-size: 14px; letter-spacing: 0.05em; opacity: 0.7; }
+    #status { font-size: 12px; opacity: 0.4; margin-top: 8px; }
+    #reset { margin-top: 12px; padding: 6px 20px; background: none; border: 1px solid rgba(255,255,255,0.3); color: #fff; font-family: monospace; font-size: 13px; cursor: pointer; border-radius: 4px; }
+    #reset:hover { background: rgba(255,255,255,0.1); }
+  </style>
+</head>
+<body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+  <script>
+    let yaw = 0, pitch = 0, roll = 0;
+    let rawYaw = 0, rawPitch = 0, rawRoll = 0;
+    let offsetYaw = 0, offsetPitch = 0, offsetRoll = 0;
+    let connected = false;
+
+    const ws = new WebSocket("ws://localhost:8080");
+    ws.onopen = () => connected = true;
+    ws.onclose = () => connected = false;
+    ws.onmessage = (e) => {
+      const d = JSON.parse(e.data);
+      rawYaw = d.yaw; rawPitch = d.pitch; rawRoll = d.roll;
+      yaw = rawYaw - offsetYaw;
+      pitch = rawPitch - offsetPitch;
+      roll = rawRoll - offsetRoll;
+    };
+
+    function reset() {
+      offsetYaw = rawYaw;
+      offsetPitch = rawPitch;
+      offsetRoll = rawRoll;
+    }
+
+    new p5(function(p) {
+      p.setup = function() {
+        p.createCanvas(480, 480, p.WEBGL).parent(document.body);
+        p.colorMode(p.HSB);
+      };
+
+      p.draw = function() {
+        p.background(0, 0, 10);
+        p.lights();
+
+        // Camera slightly above
+        p.rotateX(pitch);
+        p.rotateY(yaw);
+        p.rotateZ(roll);
+
+        // Head box
+        p.noStroke();
+        p.fill(200, 60, 90);
+        p.box(120, 150, 120);
+
+        // Eyes
+        p.fill(0, 0, 100);
+        p.translate(-30, -20, 60);
+        p.sphere(16);
+        p.translate(60, 0, 0);
+        p.sphere(16);
+        p.translate(-30, 0, 0);
+
+        // Nose direction indicator (shows yaw clearly)
+        p.fill(40, 80, 100);
+        p.translate(0, 20, 10);
+        p.box(14, 14, 40);
+
+        // Labels
+        const fmt = (v) => (v >= 0 ? " " : "") + v.toFixed(3);
+        document.getElementById("values").textContent =
+          `yaw ${fmt(yaw)}   pitch ${fmt(pitch)}   roll ${fmt(roll)}`;
+        document.getElementById("status").textContent =
+          connected ? "● connected" : "○ disconnected";
+      };
+    });
+  </script>
+  <div id="values">—</div>
+  <div id="status">connecting…</div>
+  <button id="reset" onclick="reset()">Reset</button>
+</body>
+</html>

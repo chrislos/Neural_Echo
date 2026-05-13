@@ -1,0 +1,4 @@
+headtracker_bridge/node_modules
+headtracker_bridge/public/node_modules
+*.mp3
+*.wav
