@@ -4,3 +4,4 @@ headtracker_bridge/public/node_modules
 *.wav
 .DS_Store
 **/.DS_Store
+Sonar/node_modules
