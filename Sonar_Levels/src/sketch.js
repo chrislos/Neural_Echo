@@ -134,6 +134,8 @@ noseMesh.position.set(0, -0.05, 0.82);
 head.add(noseMesh);
 
 // Geometrie und Material werden für beide Ohren geteilt – spart Speicher.
+
+
 const earGeo = new THREE.SphereGeometry(0.1, 8, 6);
 const earMat = new THREE.MeshBasicMaterial({ 
   color: lineColor, 
@@ -242,7 +244,7 @@ ws.onmessage = (event) => {
   // Sind yaw(t-1) und yaw(jetzt) gleich (Doppel-Frame), ist der Abstand zur
   // Referenz identisch → wir gehen NICHT in die if. referenzYaw bleibt stehen,
   // letzteBewegung bleibt stehen. Erst wenn nach dem/den Doppel-Frame(s) ein
-  // neuer Wert die BEWEGUNGS_SCHWELLE wieder reißt, gehen wir rein und
+  // neuer Wert die BEWEGUNGS_SCHWELLE wieder reißt, gehen wir rein undok
   // überschreiben letzteBewegung mit dem aktuellen (größeren) ms-Wert.
   // Dadurch ist (jetzt - letzteBewegung) wieder klein → kleiner als AB_TIMEOUT
   // → die zweite if (ABNEHMEN) bleibt inaktiv.
@@ -250,7 +252,7 @@ ws.onmessage = (event) => {
   // Hinweis: referenzYaw ist nicht "der letzte Frame", sondern der zuletzt
   // EINGERASTETE Bewegungspunkt – er steht still, bis ein Wert relativ zu IHM
   // die Schwelle überschreitet.
-  
+
   if (Math.abs(yaw - referenzYaw) > BEWEGUNGS_SCHWELLE) {
     referenzYaw    = yaw;     // Referenz nachziehen
     letzteBewegung = jetzt;   // Zeitpunkt der Bewegung merken
@@ -271,15 +273,36 @@ ws.onmessage = (event) => {
 };
 
 // onHeadphonesOn() feuert einmal, wenn jemand den Kopfhörer aufsetzt.
-// Hier kommt später die erste Message / das Onboarding rein.
+// Ablauf-Timing:
+//   1) 2 Sekunden warten
+//   2) oneOne-Voice abspielen (binaural, fix vor dem Hörer durch voiceSource)
+//   3) wenn die Stimme zu Ende ist → den Ping-Part starten
 function onHeadphonesOn() {
-  console.log('headphonesOn – Kopfhörer aufgesetzt, erste Message starten');
+  console.log('headphonesOn – Kopfhörer aufgesetzt');
+  reset(); // aktuelle Kopfposition als Nullstellung übernehmen
+
+  // 1) 2 Sekunden warten, dann die Begrüßung abspielen.
+  setTimeout(() => {
+    sounds.oneOne.start();                      // läuft durch voiceSource → räumlich vor dir
+    sounds.oneOne.onstop = () => triggerPing(); // wenn die Stimme durch ist → Ping-Loop
+  }, 2000);
 }
 
 // onHeadphonesOff() feuert, wenn der Kopfhörer lange genug still lag.
-// Das ist der Reset-Hook: hier wird später das ganze Spiel auf Anfang gesetzt.
+// Das ist der Reset-Hook: Klang aus, alles zurück auf Anfang.
 function onHeadphonesOff() {
-  console.log('headphonesOff – Kopfhörer abgelegt, Spiel zurücksetzen');
+  console.log('headphonesOff – Kopfhörer abgelegt, alles aus');
+
+  // Ping-Loop stoppen: der nächste geplante triggerPing wird abgebrochen.
+  // (Der gerade klingende Ton läuft als 16n kurz aus – das ist gewollt.)
+  clearTimeout(pingTimeoutId);
+
+  // Falls gerade die Voice läuft: stoppen UND ihren onstop-Hook entfernen, damit
+  // nicht nachträglich doch noch triggerPing() feuert (onstop läuft sonst beim Stop).
+  if (sounds.oneOne) {
+    sounds.oneOne.onstop = null;
+    sounds.oneOne.stop();
+  }
 }
 
 // reset() speichert die aktuelle Kopfposition als "Nullstellung".
@@ -363,7 +386,7 @@ function getAlignment() {
 // DIST_FAR / DIST_NEAR definieren wie nah die Quelle kommen kann.
 // Großbuchstaben = Konvention für Konstanten die sich nie ändern.
 const DIST_FAR   = 6;
-const DIST_NEAR  = 0.5;
+const DIST_NEAR  = 1.5; // nicht zu nah – die steile Nahzone direkt am Kopf krisselt sonst
 
 const INTERVAL_SLOW = 2000; // ms – langsamer Puls wenn man wegschaut
 const INTERVAL_FAST  =  150; // ms – schneller Puls wenn man direkt draufschaut
@@ -376,15 +399,23 @@ let pingIntervalMs = INTERVAL_SLOW;
 
 // ─── AUDIO (Tone.js + Resonance Audio) ────────────────────────────────────
 
-// Browser erlauben keinen Ton ohne vorherige Nutzer-Interaktion (Autoplay-Policy).
-// Deshalb starten wir alles erst beim ersten Klick.
-// Die Audio-Variablen werden hier als null deklariert und erst im Click-Handler befüllt.
+// Normalerweise erlauben Browser keinen Ton ohne Nutzer-Interaktion (Autoplay-Policy).
+// Mit dem Chrome-Start-Flag --autoplay-policy=no-user-gesture-required umgehen wir das
+// und starten den Sound direkt beim Laden (siehe initAudio unten).
+// Die Audio-Variablen werden hier als null deklariert und erst in initAudio() befüllt.
 let isPlaying      = false;
 let resonanceScene = null;
 let resonanceSource= null;
 let synth          = null;
 let pingTimeoutId  = null;
 let lastPingTime   = 0;
+
+let audioCtx = null;
+
+// voiceSource = eine fixe binaurale Quelle VOR dem Hörer, durch die alle
+// Instruktions-Stimmen laufen. sounds = zentrale Ablage der vorgeladenen Player.
+let voiceSource = null;
+const sounds = {};
 
 // triggerPing() ruft sich selbst immer wieder auf (rekursiv via setTimeout).
 // So kann das Intervall dynamisch ändern – setTimeout liest pingIntervalMs bei
@@ -408,17 +439,29 @@ function triggerPing() {
 // "await" darauf, bevor wir weitermachen. Das stellt sicher dass der Audio-Thread
 // wirklich läuft bevor wir Töne erzeugen.
 
-// click ist ein nativer event listener der dann feuert wenn die maus geklickt wird.
-window.addEventListener('click', async () => {
-  if (isPlaying) return;
+// initAudio() ersetzt den früheren Klick: dank Autoplay-Flag dürfen wir den
+// AudioContext direkt beim Laden starten – ganz ohne Maus-Interaktion.
+// Wichtig für die Ausstellung: dieser Context wird EINMAL erzeugt und läuft den
+// ganzen Tag. headphonesOn/off steuern später nur das Playback, nicht den Context.
+
+async function initAudio() {
+  if (isPlaying) return; // doppelte Initialisierung verhindern
 
   // AudioContext ist die native Browser-API für alles mit Audio.
   // Tone.js und Resonance Audio bauen beide darauf auf – wir teilen einen Context.
-  const audioCtx = new AudioContext();
+  audioCtx = new AudioContext();
   Tone.setContext(audioCtx);
 
   // es scheint audioCtx.resume() braucht eine weile bis es losgeht. daher deklarieren  wir den sound init callback als async.
   await audioCtx.resume();
+
+  console.log(audioCtx.state);
+
+  // Falls Chrome den Context im Dauerbetrieb mal selbst pausiert (z.B. Tab im
+  // Hintergrund), holen wir ihn automatisch wieder zurück.
+  audioCtx.onstatechange = () => {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  };
 
   // ResonanceAudio baut einen virtuellen Raum mit Wänden, Boden und Decke.
   // ambisonicOrder: 3 = höhere räumliche Auflösung (rechenintensiver aber besser).
@@ -458,8 +501,8 @@ window.addEventListener('click', async () => {
   // .connect(resonanceSource.input) leitet den Ton durch Resonance Audio.
   synth = new Tone.Synth({
     // volume ist in Dezibel (dB). 0 = voller Pegel, negative Werte = leiser.
-    // -8 dB nimmt die Lautstärke spürbar zurück, ohne sie zu stark zu drücken.
-    volume: -8,
+    // -16 dB: deutlich leiser – nah+laut clippte sonst beim schnellen Drehen.
+    volume: -16,
     oscillator: { type: 'sine' },
     envelope: {
       attack: 0.005,
@@ -468,6 +511,21 @@ window.addEventListener('click', async () => {
       release: 0.2 }
   }).connect(resonanceSource.input);
 
+  // ─── VOICE-QUELLE (binaural, fix vor dem Hörer) ───
+  // Alle Instruktions-Stimmen laufen durch EINE Resonance-Quelle, die statisch
+  // vor dem Hörer sitzt (Ruhe-Blickachse = -Z). Drehst du den Kopf, bleibt die
+  // Stimme im Raum verankert statt flach mitzuwandern.
+  voiceSource = resonanceScene.createSource();
+  voiceSource.setPosition(0, 0, -2); // -Z = direkt vor dem Hörer, ca. 2 m
+
+  // Alle (kurzen) Voice-Files hier zentral vorladen, damit später kein Lade-/
+  // Dekodier-Hänger das Timing stört. Tone.Player dekodiert in den RAM – nur für
+  // kurze Sprach-Files gedacht, NICHT für die großen Ambisonics-Wavs.
+  sounds.oneOne = new Tone.Player('/1-1.mp3').connect(voiceSource.input);
+
+  // Tone.loaded() wartet, bis ALLE oben erzeugten Player ihre Buffer dekodiert haben.
+  await Tone.loaded();
+
   isPlaying = true;
 
   // wir haben im html einen kleinen tag:  <div id="hint">click to start &nbsp;·&nbsp; r = reset</div>
@@ -475,9 +533,22 @@ window.addEventListener('click', async () => {
   // im style.css ist hinterlegt das die opacity (also der alpha) einfach auf 0 gesetzt wird.
   document.getElementById('hint').classList.add('hidden');
 
-  // jetzt ist alles geladen und wir können unserern trigger ping loop zum ersten mal ausführen (und dann loopt er selbstständig weiter)
-  triggerPing();
-});
+  // Audio ist jetzt bereit. Der Ping-Loop startet aber NICHT hier, sondern erst
+  // am Ende der onHeadphonesOn()-Sequenz (2s warten → 1-1.mp3 → dann Pings).
+}
+
+// Direkt beim Laden starten – ersetzt den früheren window.addEventListener('click', …).
+initAudio();
+
+// DEV-Fallback: Ohne das Autoplay-Flag (also im normalen Chrome beim Entwickeln)
+// startet der AudioContext "suspended" – resume() bleibt blockiert, bis eine
+// Nutzer-Geste kommt. Ein Klick (oder Tastendruck) weckt ihn dann auf.
+// In der Ausstellung (mit Flag) läuft der Context schon → der Klick tut hier nichts.
+function wakeAudio() {
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+window.addEventListener('click', wakeAudio);
+window.addEventListener('keydown', wakeAudio);
 
 
 
@@ -500,6 +571,7 @@ const tick = () => {
   head.rotation.y =  yaw + Math.PI; // +180° damit Nase zur Front-Kamera zeigt
   head.rotation.x =  pitch;
   head.rotation.z =  roll;
+
 
 
   // 2. ALIGNMENT berechnen + Parameter interpolieren
@@ -591,10 +663,17 @@ const tick = () => {
   // toFixed(2) rundet auf 2 Nachkommastellen.
   // das ist einfach ein HTML code Update:
   const bpm = 60000 / pingIntervalMs;
+
+
+
   document.getElementById('hud').innerHTML =
     `yaw &nbsp;${yaw.toFixed(2)}<br>` +
     `dist ${sourceDist.toFixed(2)} m<br>` +
-    `bpm &nbsp;${bpm.toFixed(1)}`;
+    `bpm &nbsp;${bpm.toFixed(1)}<br>` +
+    `ctx &nbsp;${audioCtx.state}<br>` +
+    `HP &nbsp;${headphonesOn}`  ;
+    
+
 
 
   // 9. RENDERN + nächsten Frame anfordern

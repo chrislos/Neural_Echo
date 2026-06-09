@@ -4,7 +4,7 @@
   box-sizing: border-box;
 }
 
-/* Three.js Canvas: nimmt den ganzen Viewport -->
+/* Three.js Canvas: nimmt den ganzen Viewport */
 canvas.webgl {
   display: block;
   position: fixed;
