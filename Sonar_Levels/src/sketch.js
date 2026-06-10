@@ -289,20 +289,10 @@ function onHeadphonesOn() {
 }
 
 // onHeadphonesOff() feuert, wenn der Kopfhörer lange genug still lag.
-// Das ist der Reset-Hook: Klang aus, alles zurück auf Anfang.
+// Das ist der Reset-Hook: hier wird später das ganze Spiel auf Anfang gesetzt.
 function onHeadphonesOff() {
-  console.log('headphonesOff – Kopfhörer abgelegt, alles aus');
+  console.log('headphonesOff – Kopfhörer abgelegt, Spiel zurücksetzen');
 
-  // Ping-Loop stoppen: der nächste geplante triggerPing wird abgebrochen.
-  // (Der gerade klingende Ton läuft als 16n kurz aus – das ist gewollt.)
-  clearTimeout(pingTimeoutId);
-
-  // Falls gerade die Voice läuft: stoppen UND ihren onstop-Hook entfernen, damit
-  // nicht nachträglich doch noch triggerPing() feuert (onstop läuft sonst beim Stop).
-  if (sounds.oneOne) {
-    sounds.oneOne.onstop = null;
-    sounds.oneOne.stop();
-  }
 }
 
 // reset() speichert die aktuelle Kopfposition als "Nullstellung".
@@ -386,7 +376,7 @@ function getAlignment() {
 // DIST_FAR / DIST_NEAR definieren wie nah die Quelle kommen kann.
 // Großbuchstaben = Konvention für Konstanten die sich nie ändern.
 const DIST_FAR   = 6;
-const DIST_NEAR  = 1.5; // nicht zu nah – die steile Nahzone direkt am Kopf krisselt sonst
+const DIST_NEAR  = 0.5;
 
 const INTERVAL_SLOW = 2000; // ms – langsamer Puls wenn man wegschaut
 const INTERVAL_FAST  =  150; // ms – schneller Puls wenn man direkt draufschaut
@@ -501,8 +491,8 @@ async function initAudio() {
   // .connect(resonanceSource.input) leitet den Ton durch Resonance Audio.
   synth = new Tone.Synth({
     // volume ist in Dezibel (dB). 0 = voller Pegel, negative Werte = leiser.
-    // -16 dB: deutlich leiser – nah+laut clippte sonst beim schnellen Drehen.
-    volume: -16,
+    // -8 dB nimmt die Lautstärke spürbar zurück, ohne sie zu stark zu drücken.
+    volume: -8,
     oscillator: { type: 'sine' },
     envelope: {
       attack: 0.005,
@@ -522,6 +512,11 @@ async function initAudio() {
   // Dekodier-Hänger das Timing stört. Tone.Player dekodiert in den RAM – nur für
   // kurze Sprach-Files gedacht, NICHT für die großen Ambisonics-Wavs.
   sounds.oneOne = new Tone.Player('/1-1.mp3').connect(voiceSource.input);
+  //   // kurze Sprach-Files gedacht, NICHT für die großen Ambisonics-Wavs.
+  // sounds.oneTwo = new Tone.Player('/1-1.mp3').connect(voiceSource.input);
+  //   // kurze Sprach-Files gedacht, NICHT für die großen Ambisonics-Wavs.
+  // sounds.oneThree = new Tone.Player('/1-1.mp3').connect(voiceSource.input);
+
 
   // Tone.loaded() wartet, bis ALLE oben erzeugten Player ihre Buffer dekodiert haben.
   await Tone.loaded();

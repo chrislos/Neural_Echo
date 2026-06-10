@@ -14,11 +14,14 @@ sleep 2
 
 # Chrome mit Autoplay-Flag und eigenem Profil starten.
 #  --autoplay-policy=no-user-gesture-required → Sound darf ohne Klick starten
-#  --user-data-dir=/tmp/kiosk-profile         → eigenes Profil, damit das Flag sicher greift
-#  --kiosk (auskommentiert)                   → Vollbild fuer die Ausstellung
+#  --user-data-dir=...                        → eigenes Profil (NICHT in /tmp, sonst nach Neustart weg)
+#  --no-first-run / --no-default-browser-check → kein Begruessungs-/Standardbrowser-Dialog
+#  --kiosk                                    → Vollbild fuer die Ausstellung
 /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
   --autoplay-policy=no-user-gesture-required \
-  --user-data-dir=/tmp/kiosk-profile \
+  --user-data-dir="$HOME/.kiosk-profile" \
+  --no-first-run \
+  --no-default-browser-check \
   --kiosk \
   http://localhost:3000
 
