@@ -445,6 +445,11 @@ const soundsFinal = {}; // Scene5: Stereo-Bett + 4 Instrument-Layer (Stereo-Bett
 // eine Weile stehen – wie eine Lupe, mit der man die Klangflächen erkundet.
 let scene5Active = false; // schaltet den Scanner im tick() an
 
+// ⚠️ DEV-SHORTCUT: true = beim Laden direkt in Scene5 springen (zum Arbeiten am
+// Orchester/Scanner, ohne jedes Mal die ganze Experience durchzuspielen).
+// VOR der Ausstellung/dem echten Ablauf wieder auf false setzen!
+const DEV_SKIP_TO_SCENE5 = true;
+
 // Jedes Instrument hat einen Winkel (wie in initAudio positioniert) und einen
 // aktuellen Pegel "level" von 0 (stumm) bis 1 (voll). Den Namen nutzen wir, um
 // den passenden Volume-Node in soundsFinal zu finden (name + 'Vol').
@@ -759,6 +764,16 @@ async function initAudio() {
   // Audio ist jetzt bereit. Der Ping-Loop startet aber NICHT hier, sondern erst
   // am Ende der onHeadphonesOn()-Sequenz (2s warten → 1-1.mp3 → dann Pings).
 
+  // ⚠️ DEV-SHORTCUT: direkt in Scene5 springen (siehe DEV_SKIP_TO_SCENE5 oben).
+  // Wir starten den Render/Update-Loop (tick) und die letzte Szene sofort und
+  // überspringen scene1–4 komplett. Zum Deaktivieren einfach den Schalter oben
+  // auf false setzen – dann läuft wieder der normale Ablauf über onHeadphonesOn().
+  if (DEV_SKIP_TO_SCENE5) {
+    tick();
+    scene5();
+    return;
+  }
+
   // Falls der Kopfhörer schon aufgesetzt wurde, während wir noch luden:
   // die Experience jetzt nachholen, statt sie verschluckt zu haben.
   if (startPending) {
@@ -1017,9 +1032,12 @@ const tick = () => {
   // Instrumente, ob der Kopf gerade in seine Richtung zeigt, und faden es
   // entsprechend ein (schnell) oder wieder aus (langsam).
   if (isPlaying && scene5Active) {
-    // Blickrichtung horizontal in Grad. yaw > 0 = nach rechts (gleiche
-    // Konvention wie die Instrument-Winkel in initAudio).
-    const blickGrad = yaw * 180 / Math.PI;
+    // Blickrichtung horizontal in Grad. ACHTUNG: das yaw-Vorzeichen der AirPods
+    // ist andersrum als die Instrument-Winkel – ohne das Minus würde "nach links
+    // schauen" das rechte Instrument (Cello) aktivieren. Das Minus dreht die
+    // Blickrichtung so, dass sie zur Positionierung passt:
+    //   nach rechts schauen → Cello/Gitarre (rechts), nach links → Piano/Flöte (links).
+    const blickGrad = -yaw * 180 / Math.PI;
 
     for (const inst of orchestra) {
       // Winkel-Abstand zwischen Blick und Instrument (auf -180..180 normiert,
@@ -1285,7 +1303,7 @@ function scene5(fadeSek = 5) {
   // Stereo-Bett faded als Crossfade rein (ersetzt nahtlos das alte Ambix).
   // Es ist als loop geflaggt und läuft ab jetzt endlos als Grundklang.
   soundsFinal.stereo.start();
-  soundsFinal.stereoVol.volume.rampTo(ZIEL_LAUTSTAERKE, fadeSek);
+  soundsFinal.stereoVol.volume.rampTo(ZIEL_LAUTSTAERKE-12, fadeSek);
 
   // Die 4 Instrumente laufen bereits (loop), bleiben aber STUMM. Sie werden
   // NICHT hier eingefadet, sondern ausschließlich vom "Lupe"-Scanner im tick()
