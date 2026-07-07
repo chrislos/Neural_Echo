@@ -225,10 +225,10 @@ async function mousePressed(){
 
 
     await Tone.loaded();
-    // player.start();
+    player.start();
 
     // rode_ambix.wav: AmbiX Order 1 (4 Kanäle, ACN/SN3D) direkt in die Szene einspeisen
-    const ambiResponse = await fetch('ambix_3OA_output.wav');
+    const ambiResponse = await fetch('rode_ambix.wav');
     const ambiArrayBuffer = await ambiResponse.arrayBuffer();
     const ambiBuffer = await audioCtx.decodeAudioData(ambiArrayBuffer);
     ambiSource = audioCtx.createBufferSource();
