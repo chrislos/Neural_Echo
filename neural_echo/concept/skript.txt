@@ -57,10 +57,6 @@ SOUND:  [s1_ineractiveSound2_distantLoop_(mono).wav]     (40.0 s)
     [Loop]     Zweite Klangquelle kommt näher zum Kopf
                (drei loopende Elemente: Distant + Middle + Near)
 
-SPRECHERIN:  [s1_speech3_(mono).wav]                      (7.6 s)
-    Jetzt bist du ja schon Profi im Klänge herbeilocken.
-    Aber mit deinen neuen Ohren hast du noch eine weitere Fähigkeit.
-
 
 ----------------------------------------------------------------
 SZENE 2 — Hausfink / Zeit verlangsamen           static/SZENE_2/
@@ -68,7 +64,9 @@ SZENE 2 — Hausfink / Zeit verlangsamen           static/SZENE_2/
 Konzept: Ein Vogelklang wird durch räumliche Kopfbewegung von
 links nach rechts in der Zeit verlangsamt.
 
-SPRECHERIN:  [s2_speech1_(mono).wav]                      (9.3 s)
+SPRECHERIN:  [s2_speech1_(mono).wav]                     (39.1 s)
+    Jetzt bist du ja schon Profi im Klänge herbeilocken.
+    Aber mit deinen neuen Ohren hast du noch eine weitere Fähigkeit.
     Wusstest du, dass andere Lebewesen Klang in ganz anderen
     Geschwindigkeiten wahrnehmen können?
     Nehmen wir zum Beispiel mal den Hausfink. Der kann Details in
@@ -96,7 +94,7 @@ SOUND:  [s2_lowNatureFxLoop_(ambiX).wav]           (39.9 s, 16ch)
 
 TIMING: Nach circa 15 Sekunden →
 
-SPRECHERIN (Ende Szene 2):  [s2_speech2_(mono).wav]       (9.3 s)
+SPRECHERIN (Ende Szene 2):  [s2_speech2_(mono).wav]       (6.8 s)
     Hör zum Schluss noch mal genauer hin. Merkst du, wie in den
     zwei Tönen eine ganze Melodie steckt?
 
@@ -111,7 +109,7 @@ Hörposition hinschaut.
 TIMING: Circa 5 Sekunden nach der Ansprache
         „… eine ganze Melodie steckt?" →
 
-SPRECHERIN:  [s3_speech1_(mono).wav]                     (12.7 s)
+SPRECHERIN:  [s3_speech1_(mono).wav]                     (17.3 s)
     Deine neuen Ohren sind jetzt ganz schön gut trainiert.
     Zum Abschluss darfst du noch einen musikalischen Raum erkunden.
     Dreh weiter deinen Kopf und höre, was für Klänge sich
@@ -162,11 +160,11 @@ SZENE_2/
     s2_natureLoop_(ambiX).wav                     58.7 s   16ch
     s2_lowNatureFxLoop_(ambiX).wav                39.9 s   16ch
     s2_fink_(mono).wav                             1.9 s
-    s2_speech1_(mono).wav                          9.3 s
-    s2_speech2_(mono).wav                          9.3 s
+    s2_speech1_(mono).wav                         39.1 s
+    s2_speech2_(mono).wav                          6.8 s
 
 SZENE_3/
-    s3_speech1_(mono).wav                         12.7 s
+    s3_speech1_(mono).wav                         17.3 s
     s3_musik_basis.wav                           106.0 s
     s3_musik_cello.wav                           114.0 s
     s3_musik_gitarre.wav                         106.0 s

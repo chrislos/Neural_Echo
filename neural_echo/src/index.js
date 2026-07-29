@@ -1,895 +1,1147 @@
-// NEURAL ECHO – die komplette Experience
+// ═══════════════════════════════════════════════════════════════════════════
+//  N E U R A L   E C H O
+//  Eine binaurale Hör-Erfahrung. Du setzt Kopfhörer auf, drehst den Kopf –
+//  und der Klang reagiert darauf, als stündest du wirklich in dem Raum.
+// ═══════════════════════════════════════════════════════════════════════════
 //
-// Ablauf (siehe skript.txt im Repo-Root):
-//   INTRO    → Stimme begrüßt, Swoosh, Natur-Ambix fadet ein
-//   SZENE 1  → zwei Klangkugeln (links, dann rechts) durch Hinschauen herbeilocken
-//   SZENE 2  → Hausfink: Kopf nach rechts drehen = Zeit verlangsamen
-//   SZENE 3  → musikalischer Raum: Instrumente durch Blickrichtung aktivieren
+//  WAS PASSIERT HIER?
 //
-// Architektur:
-//   3dhead.js  → alles Sichtbare (Three.js: Kopf, Kugeln, Renderer)
-//   Tone.js    → lädt und spielt die Audio-Dateien
-//   Resonance  → positioniert Klänge im 3D-Raum (binaural)
-//   WebSocket  → Kopfrotation von den AirPods (headtracker_bridge, Port 8080)
+//    INTRO     Eine Stimme begrüßt dich, ein Swoosh öffnet den Raum.
+//    SZENE 1   Zwei Klangkugeln liegen links und rechts. Schaust du eine an,
+//              kommt sie näher – bis du sie "eingefangen" hast.
+//    SZENE 2   Ein Hausfink zwitschert. Drehst du den Kopf nach rechts,
+//              wird die Zeit langsamer und du hörst Details in seinem Gesang.
+//    SZENE 3   Ein musikalischer Raum: Wo du hinschaust, spielt ein Instrument.
 //
-// INSTALLATION (Futurium): Die Experience startet, wenn jemand den Kopfhörer
-// AUFSETZT (wir erkennen das an der Kopfbewegung), und setzt sich komplett
-// zurück, wenn er wieder ABGELEGT wird – bereit für den nächsten Besucher.
+//  Der genaue Text und welche Audio-Datei wo läuft: concept/skript.txt
 //
-// Grundregel im Code: initAudio() LÄDT alles, die szene…()-Funktionen SPIELEN.
-// Der tick() läuft als EINE einzige Schleife und kümmert sich jede Frame um
-// Kopfdrehung, Interaktion und Rendern – welche Interaktion gerade gilt,
-// entscheidet die Variable "phase".
+//  WELCHE BAUTEILE ARBEITEN ZUSAMMEN?
+//
+//    Three.js    zeichnet den Drahtgitter-Kopf auf den Bildschirm  → 3dhead.js
+//    Tone.js     lädt und spielt einzelne Audio-Dateien ab
+//    Resonance   platziert Klänge im 3D-Raum, damit sie binaural klingen
+//    WebSocket   liefert die Kopfdrehung von den AirPods (Port 8080)
+//
+//  WIE IST DIESE DATEI AUFGEBAUT? (von oben nach unten lesbar)
+//
+//    TEIL 1   Die Audio-Dateien
+//    TEIL 2   Einstellungen – alle Zahlen, an denen man drehen kann
+//    TEIL 3   Variablen, die sich während der Experience verändern
+//    TEIL 4   Werkzeugkasten – die wenigen Funktionen, die überall gebraucht werden
+//    TEIL 5   Headtracking – die Winkel von den AirPods
+//    TEIL 6   Audio laden und verkabeln
+//    TEIL 7   Der Ablauf – eine Funktion pro Szene
+//    TEIL 8   Jede Frame – hier passiert die Interaktion
+//    TEIL 9   Kopfhörer auf und ab (Start und Reset)
+//    TEIL 10  Hochfahren und Tasten zum Testen
+//
+//  DREI REGELN, DIE SICH DURCH DIE GANZE DATEI ZIEHEN:
+//
+//    1. GELADEN wird nur in TEIL 6, GESPIELT nur in TEIL 7 und 8.
+//       Nie eine Audio-Datei mitten in einer Szene laden – das ruckelt.
+//    2. Es gibt genau EINE Schleife (tick) und EINE Variable, die sagt,
+//       welche Interaktion gerade dran ist (phase).
+//    3. Eine Szene macht alles, was sie tut, in ihrer eigenen Funktion.
+//       Nur was wirklich überall gebraucht wird, steht im Werkzeugkasten.
 
 import * as Tone from 'tone';
 import { ResonanceAudio } from 'resonance-audio';
 import { erstelleKopfSzene } from './3dhead.js';
 
 
-// ─── 3D-KOPF ───────────────────────────────────────────────────────────────
-// Das ganze Three.js-Setup wohnt in 3dhead.js – wir bekommen nur drei
-// Funktionen zurück und müssen uns hier um nichts Visuelles mehr kümmern.
+// ═══════════════════════════════════════════════════════════════════════════
+//  TEIL 1 – DIE AUDIO-DATEIEN
+//  Alle Aufnahmen liegen in static/ und werden vom Server unter '/' angeboten:
+//  aus static/INTRO/intro_speech_(mono).wav wird '/INTRO/intro_speech_(mono).wav'.
+//
+//  Die Namen stehen hier gesammelt an EINER Stelle. Wird eine Aufnahme neu
+//  geschnitten, ändert man nur diese Liste – der restliche Code bleibt gleich.
+//
+//    "(mono)"  = 1 Kanal    → wird von Tone.js an eine Stelle im Raum gesetzt
+//    "(ambiX)" = 16 Kanäle  → Ambisonics, eine Rundum-Aufnahme (siehe TEIL 4)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const DATEIEN = {
+  introStimme: '/INTRO/intro_speech_(mono).wav',
+  introSwoosh: '/INTRO/intro_swoosh_(ambiX).wav',
+
+  s1Natur:   '/SZENE_1/s1_natureLoop_(ambiX).wav',
+  s1Stimme1: '/SZENE_1/s1_speech1_(mono).wav', // "…dreh deinen Kopf nach links"
+  s1Stimme2: '/SZENE_1/s1_speech2_(mono).wav', // "…jetzt nach rechts"
+  // s1_speech3 ("Jetzt bist du ja schon Profi…") gibt es nicht mehr als eigene
+  // Datei – der Satz steckt jetzt vorne in s2_speech1. Die alte Datei liegt
+  // noch in static/SZENE_1/, wird aber nirgends mehr geladen.
+
+  // Jede Klangkugel besteht aus drei Loops, die beim Näherkommen nacheinander
+  // dazukommen: erst nur "fern", dann "mittel", ganz nah dann auch "nah".
+  s1Kugel1: [
+    '/SZENE_1/s1_ineractiveSound1_distantLoop_(mono).wav',
+    '/SZENE_1/s1_ineractiveSound1_middleLoop_(mono).wav',
+    '/SZENE_1/s1_ineractiveSound1_nearLoop_(mono).wav',
+  ],
+  s1Kugel2: [
+    '/SZENE_1/s1_ineractiveSound2_distantLoop_(mono).wav',
+    '/SZENE_1/s1_ineractiveSound2_middleLoop_(mono).wav',
+    '/SZENE_1/s1_ineractiveSound2_nearLoop_(mono).wav',
+  ],
+
+  s2Swoosh:  '/SZENE_2/s2_swoosh_(ambiX).wav',
+  s2Natur:   '/SZENE_2/s2_natureLoop_(ambiX).wav',      // wird mit-verlangsamt
+  s2NaturFx: '/SZENE_2/s2_lowNatureFxLoop_(ambiX).wav', // bleibt normal schnell
+  s2Fink:    '/SZENE_2/s2_fink_(mono).wav',
+  s2Stimme1: '/SZENE_2/s2_speech1_(mono).wav', // "Wusstest du, dass…"
+  s2Stimme2: '/SZENE_2/s2_speech2_(mono).wav', // "Hör zum Schluss noch mal…"
+
+  s3Stimme1:    '/SZENE_3/s3_speech1_(mono).wav',
+  s3Basis:      '/SZENE_3/s3_musik_basis.wav',
+  s3Cello:      '/SZENE_3/s3_musik_cello.wav',
+  s3Gitarre:    '/SZENE_3/s3_musik_gitarre.wav',
+  s3Klavier:    '/SZENE_3/s3_musik_klavier.wav',
+  s3Floete:     '/SZENE_3/s3_musik_floete.wav',
+  s3Perkussion: '/SZENE_3/s3_musik_perkussion.wav',
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  TEIL 2 – EINSTELLUNGEN
+//  Alles, woran man beim Ausprobieren dreht, steht hier oben an einer Stelle.
+//  GROSSBUCHSTABEN heißt in JavaScript: "das ist ein fester Wert".
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── Szene 1: die zwei Klangkugeln ───
+const DIST_FERN         = 6;   // Meter: so weit weg startet eine Kugel
+const DIST_NAH          = 1;   // Meter: ab hier gilt sie als eingefangen
+                               // (Standardwert – die linke Kugel bleibt etwas
+                               //  weiter weg, siehe kugel1.nahDist in TEIL 3)
+const BLICK_GENAUIGKEIT = 0.8; // wie genau man treffen muss (1 = haargenau)
+const RUECKZUG_TEMPO    = 1;   // Meter pro Sekunde: so schnell weicht sie zurück
+const EINFADE_SEK       = 2;   // Sekunden: so sanft taucht eine Kugel auf
+const AUSFADE_SEK       = 1.5; // Sekunden: so sanft verschwindet sie beim Einfangen
+
+// ─── Szene 2: der Hausfink ───
+// Der Kopf wird zum Regler: ganz links = normales Tempo,
+// ganz rechts = stark verlangsamt (und dadurch tiefer, wie eine Bandmaschine).
+const FINK_YAW_LINKS  =  Math.PI / 2; // +90 Grad = ganz links
+const FINK_YAW_RECHTS = -Math.PI / 2; // -90 Grad = ganz rechts
+const FINK_MIN_TEMPO  = 0.15; // langsamster Punkt: 15 % Geschwindigkeit
+const NATUR_MIN_TEMPO = 0.1;  // das Natur-Bett wird noch etwas stärker gebremst
+const FINK_ABSTAND    = 2;    // Meter: so weit vor den Augen schwebt der Vogel
+const FINK_LOOP_KURZ  = 0.4;  // Sekunden: kürzeste Loop-Länge (siehe TEIL 8)
+
+// ─── Szene 3: der musikalische Raum ───
+// Jedes Instrument hängt in einer Richtung im Raum. Zwei Winkel beschreiben sie:
+//    azimut = links/rechts   (0 = geradeaus, + = rechts, − = links)
+//    hoehe  = oben/unten     (0 = auf Ohrhöhe, 90 = senkrecht über dir)
+// "beam" ist die Breite des Bereichs, in dem das Instrument angeht – wie der
+// Lichtkegel einer Taschenlampe. "pegel" ist die aktuelle Lautstärke von
+// 0 (stumm) bis 1 (voll); die rechnet TEIL 8 jede Frame neu aus.
+//
+// Warum das Klavier auf 60 statt 90 Grad hängt: Niemand legt den Kopf senkrecht
+// nach oben. Bei 60 Grad reicht ein deutliches Nicken – und es klingt trotzdem
+// eindeutig von oben.
+const orchester = [
+  { name: 'cello',      datei: DATEIEN.s3Cello,      azimut:  80, hoehe:  0, beam: 25, pegel: 0 },
+  { name: 'gitarre',    datei: DATEIEN.s3Gitarre,    azimut:  40, hoehe:  0, beam: 25, pegel: 0 },
+  { name: 'klavier',    datei: DATEIEN.s3Klavier,    azimut:   0, hoehe: 60, beam: 40, pegel: 0 },
+  { name: 'floete',     datei: DATEIEN.s3Floete,     azimut: -40, hoehe:  0, beam: 25, pegel: 0 },
+  { name: 'perkussion', datei: DATEIEN.s3Perkussion, azimut: -80, hoehe:  0, beam: 25, pegel: 0 },
+];
+const ORCH_ABSTAND = 6;   // Meter: so weit weg stehen die Instrumente
+const ANSCHAU_SEK  = 2.5; // Sekunden: so schnell fadet ein Instrument ein
+const AUSKLING_SEK = 5;   // Sekunden: so langsam klingt es wieder aus
+
+// ─── Wie lange dauern die Übergänge? (siehe concept/skript.txt) ───
+const INTRO_SWOOSH_NACH_SEK = 8.5; // Swoosh kommt mitten in die Intro-Stimme
+const S2_SWOOSH_NACH_SEK    = 7.4; // dito in Szene 2: die Ansage beginnt noch in
+                                   // Szene 1, der Raum wechselt erst in der
+                                   // Sprechpause vor "Wusstest du, dass…"
+const PAUSE_VOR_LINKS_SEK   = 3;   // Ruhe, bevor die Stimme von links spricht
+const PAUSE_VOR_STIMME_SEK  = 1.5; // Ruhe vor den übrigen Ansagen
+const FINK_SPIELZEIT_SEK    = 15;  // freies Ausprobieren, dann kommt die Ansage
+const FINK_ENDE_PAUSE_SEK   = 5;   // Pause nach "…eine ganze Melodie steckt?"
+const SZENE3_FADE_SEK       = 5;   // Überblendung von Szene 2 nach Szene 3
+// Ein Outro gibt es nicht mehr: "Wenn du genug gehört hast, darfst du deine
+// Kopfhörer wieder absetzen" ist schon das Ende von s3_speech1.
+
+// ─── Kopfhörer auf oder ab? ───
+// Die Idee: Wer den Kopfhörer trägt, bewegt den Kopf IMMER ein kleines bisschen.
+// Hängt der Kopfhörer am Haken, ist das Signal dagegen totenstill. Wir messen
+// also nur: "Wann gab es zuletzt eine echte Bewegung?"
+const BEWEGUNGS_SCHWELLE = 0.000000015; // ab so viel Änderung zählt es als Bewegung
+const AB_TIMEOUT_MS      = 5000;        // so lange still = Kopfhörer liegt ab
+
+const HINWEIS_TEXT = 'setz die Kopfhörer auf … · h = simulieren · r = reset';
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  TEIL 3 – VARIABLEN, DIE SICH VERÄNDERN
+//  Alles hier startet leer und wird später gefüllt. "let" heißt: darf sich
+//  ändern. "const" bei einem Objekt heißt: das Objekt bleibt dasselbe, aber
+//  seine Inhalte dürfen sich ändern.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Der 3D-Kopf auf dem Bildschirm. Das ganze Three.js-Setup wohnt in 3dhead.js –
+// wir bekommen nur drei Funktionen zurück und müssen uns um nichts Weiteres
+// kümmern: setzeKopfDrehung(), macheKugel() und render().
 const canvas = document.querySelector('canvas.webgl');
 const kopf3d = erstelleKopfSzene(canvas);
 
-
-// ─── PHASE ─────────────────────────────────────────────────────────────────
-// EINE Variable sagt dem tick(), welche Interaktion gerade aktiv ist.
-// Das ersetzt viele einzelne booleans (isSonarActive, scene5Active, …)
-// und macht den Ablauf leichter nachvollziehbar.
-//   'laden'   → Audio lädt noch
-//   'warten'  → alles bereit, Kopfhörer hängt im Raum
-//   'intro'   → Stimme läuft, keine Interaktion
-//   'kugel1'  → linke Kugel herbeilocken
-//   'kugel2'  → rechte Kugel herbeilocken
-//   'fink'    → Kopfdrehung steuert die Abspielgeschwindigkeit
-//   'musik'   → Blickrichtung aktiviert Instrumente
+// WELCHE INTERAKTION IST GERADE DRAN?
+// Diese eine Variable steuert TEIL 8. Sie ersetzt viele einzelne
+// Ja/Nein-Variablen und macht den Ablauf leichter nachvollziehbar.
+//   'laden'   → die Audio-Dateien werden noch geladen
+//   'warten'  → alles bereit, der Kopfhörer hängt am Haken
+//   'intro'   → eine Stimme spricht, es gibt nichts zu tun
+//   'kugel1'  → die linke Kugel darf herbeigelockt werden
+//   'kugel2'  → die rechte Kugel darf herbeigelockt werden
+//   'fink'    → die Kopfdrehung steuert die Geschwindigkeit
+//   'musik'   → die Blickrichtung schaltet Instrumente an
 let phase = 'laden';
 
-// laeuft = trägt gerade jemand den Kopfhörer und die Experience spielt?
-// Alle Szenen-Verkettungen prüfen dieses Flag – nach einem Reset dürfen
-// alte Callbacks (z.B. das Ende einer gestoppten Stimme) NICHTS mehr starten.
+// Trägt gerade jemand den Kopfhörer und die Experience läuft?
+// Wichtig beim Zurücksetzen: siehe stelleAllesZurueck() in TEIL 9.
 let laeuft = false;
 
-
-// ─── HEADTRACKING (WebSocket) ──────────────────────────────────────────────
-// Die Swift-App (headtracker_bridge) sendet die AirPods-Winkel als JSON.
-// yaw = links/rechts, pitch = nicken, roll = kippen (alles in Radiant).
-const ws = new WebSocket('ws://localhost:8080');
-
+// Die Kopfwinkel in Radiant (yaw = links/rechts, pitch = nicken, roll = kippen).
 let yaw = 0, pitch = 0, roll = 0;
 
-// Die AirPods wissen nicht, was "geradeaus" ist – ihr Referenzrahmen ist
-// zufällig. Deshalb merken wir uns die erste Messung als Null-Offset.
-let rawYaw = 0, rawPitch = 0, rawRoll = 0;
-let offsetYaw = 0, offsetPitch = 0, offsetRoll = 0;
-let calibrated = false;
+// Audio-Grundgerüst – wird einmal in TEIL 6 aufgebaut.
+let audioCtx       = null; // die Audio-Zentrale des Browsers
+let resonanceScene = null; // der virtuelle Raum für den 3D-Klang
+let stimmQuelle    = null; // die Stelle im Raum, aus der die Sprecherin spricht
+let audioBereit    = false;
 
-// ─── KOPFHÖRER AUF/AB ERKENNEN ───
-// Idee: Solange jemand den Kopfhörer trägt, bewegt sich der Kopf IMMER ein
-// kleines bisschen (niemand hält perfekt still). Hängt der Kopfhörer am
-// Haken, ist das Signal dagegen totenstill. Wir messen also nur:
-// "Wann gab es zuletzt eine echte Bewegung?"
-let headphonesOn = false;
-let referenzYaw = 0;     // letzter "eingerasteter" yaw-Wert
-let letzteBewegung = 0;  // Zeitpunkt (ms) der letzten echten Bewegung
+// Alle Sprecherinnen-Aufnahmen. Sie sind mono und laufen durch Tone.js.
+const stimme = {};
 
-// Stellschrauben für die Erkennung (Werte aus den Prototyp-Tests):
-const BEWEGUNGS_SCHWELLE = 0.000000015; // ab wie viel yaw-Änderung zählt es als Bewegung (rad)
-const AB_TIMEOUT = 5000;                // ms ohne Bewegung → Kopfhörer gilt als abgelegt
+// Die zwei Klangkugeln aus Szene 1.
+//   richtung: -1 = links im Raum, +1 = rechts im Raum
+//   dist:     aktuelle Entfernung in Metern
+//   nahDist:  bis hierher darf sie heran – dann gilt sie als eingefangen
+//   pegel:    Korrektur in Dezibel (negativ = leiser)
+//   tempo:    wie schnell sie näher kommt (wird nah am Kopf kleiner)
+//   spieler:  die drei Loops, lautstaerken: je ein Lautstärke-Regler dazu
+//
+// Warum die linke Kugel eigene Werte hat: Ihre Aufnahme drückt deutlich mehr
+// als die rechte. Sie bleibt deshalb einen Schritt weiter weg (1.8 statt 1
+// Meter) und läuft 6 dB leiser – sonst kippt sie einem am Ende ins Ohr.
+const kugel1 = { richtung: -1, dist: DIST_FERN, nahDist: 1.8, pegel: -6, tempo: 0.8, kugel3d: null, quelle: null, spieler: [], lautstaerken: [] };
+const kugel2 = { richtung:  1, dist: DIST_FERN, nahDist: DIST_NAH, pegel: 0, tempo: 0.8, kugel3d: null, quelle: null, spieler: [], lautstaerken: [] };
 
-ws.onmessage = (event) => {
-  const d = JSON.parse(event.data);
-  rawYaw   = d.yaw;
-  rawPitch = d.pitch;
-  rawRoll  = d.roll;
+// Der Fink aus Szene 2.
+const fink = { spieler: null, lautstaerke: null, quelle: null, tempo: 1 };
 
-  if (!calibrated) {
-    reset();
-    calibrated = true;
-  }
+// Die Klangfläche, über der in Szene 3 die Instrumente liegen.
+let basisSpieler     = null;
+let basisLautstaerke = null;
 
-  yaw   = rawYaw   - offsetYaw;
-  pitch = rawPitch - offsetPitch;
-  roll  = rawRoll  - offsetRoll;
-
-  const jetzt = performance.now();
-
-  // Hat sich yaw seit dem letzten eingerasteten Referenzwert deutlich bewegt?
-  // referenzYaw ist bewusst NICHT "der letzte Frame", sondern der zuletzt
-  // eingerastete Bewegungspunkt – so sind doppelte Frames (die Bridge sendet
-  // schneller, als die AirPods liefern) automatisch harmlos.
-  if (Math.abs(yaw - referenzYaw) > BEWEGUNGS_SCHWELLE) {
-    referenzYaw    = yaw;
-    letzteBewegung = jetzt;
-
-    // AUFSETZEN: Es bewegt sich, aber der Kopfhörer galt als "ab".
-    if (!headphonesOn) {
-      headphonesOn = true;
-      onHeadphonesOn();
-    }
-  }
-
-  // ABLEGEN: Kopfhörer galt als "auf", aber seit AB_TIMEOUT keine Bewegung.
-  if (headphonesOn && jetzt - letzteBewegung > AB_TIMEOUT) {
-    headphonesOn = false;
-    onHeadphonesOff();
-  }
-};
-
-// reset() speichert die aktuelle Kopfposition als neue "Nullstellung".
-function reset() {
-  offsetYaw   = rawYaw;
-  offsetPitch = rawPitch;
-  offsetRoll  = rawRoll;
-}
-
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'r') reset();
-
-  // DEV-Helfer: Taste 'h' simuliert Aufsetzen/Ablegen – zum Testen ohne
-  // AirPods. Beim Simulieren müssen wir letzteBewegung mitsetzen: Läuft
-  // nebenbei die echte Bridge, würde der AB_TIMEOUT die Simulation sonst
-  // sofort wieder "ablegen".
-  if (e.key === 'h') {
-    headphonesOn = !headphonesOn;
-    if (headphonesOn) {
-      letzteBewegung = performance.now();
-      referenzYaw = yaw;
-      onHeadphonesOn();
-    } else {
-      onHeadphonesOff();
-    }
-  }
-});
+// Die Ambisonics-Aufnahmen. Was ein "Bett" ist, steht gleich in TEIL 4.
+const nature1     = { buffer: null, gain: null, quelle: null }; // Szene 1: Wiese, Insekten
+const nature2     = { buffer: null, gain: null, quelle: null }; // Szene 2: wird verlangsamt
+const natureFx    = { buffer: null, gain: null, quelle: null }; // Szene 2: bleibt normal schnell
+const swooshIntro = { buffer: null, gain: null, quelle: null };
+const swooshS2    = { buffer: null, gain: null, quelle: null };
 
 
-// ─── MATHE-HELFER ──────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+//  TEIL 4 – DER WERKZEUGKASTEN
+//  Nur das, was wirklich an vielen Stellen gebraucht wird. Alles andere steht
+//  direkt dort, wo es passiert – damit man beim Lesen nicht hin- und
+//  herspringen muss.
+// ═══════════════════════════════════════════════════════════════════════════
 
-// Lineare Interpolation: liefert den Wert zwischen a und b an der Stelle t
-// (t wird auf 0…1 begrenzt, damit nichts "über das Ziel hinausschießt").
+// ─── Rechnen ───
+// Liefert den Wert zwischen a und b an der Stelle t.
+//   lerp(0, 10, 0)   → 0
+//   lerp(0, 10, 0.5) → 5      (genau in der Mitte)
+//   lerp(0, 10, 1)   → 10
+// t wird auf 0…1 begrenzt, damit nichts über das Ziel hinausschießt.
 function lerp(a, b, t) {
-  return a + (b - a) * Math.max(0, Math.min(1, t));
+  const begrenzt = Math.max(0, Math.min(1, t));
+  return a + (b - a) * begrenzt;
 }
 
-// Schaue ich gerade in Richtung einer Quelle bei (srcX, srcZ)?
-// Wir bauen aus dem yaw-Winkel einen Blick-Pfeil (Vektor) und multiplizieren
-// ihn mit dem Pfeil zur Quelle (Dot-Product):
-//    1 = direkt draufgeschaut,  0 = Quelle seitlich,  -1 = abgewandt
-function getAlignment(srcX, srcZ) {
-  const fwdX = Math.sin(yaw);
-  const fwdZ = Math.cos(yaw);
-  return fwdX * srcX + fwdZ * srcZ;
+// ─── Timer ───
+// Die Szenen hängen über Timer aneinander. Wird der Kopfhörer mittendrin
+// abgelegt, müssen ALLE noch offenen Timer gelöscht werden – sonst startet
+// z.B. 15 Sekunden später eine Ansage in die Stille hinein.
+// Deshalb: in den Szenen immer spaeter() statt setTimeout() benutzen.
+let offeneTimer = [];
+
+function spaeter(funktion, sekunden) {
+  const id = setTimeout(funktion, sekunden * 1000);
+  offeneTimer.push(id);
 }
 
+// ─── Ambisonics-Aufnahmen ───
+//
+// Was ist Ambisonics? Eine normale Aufnahme hat 1 oder 2 Kanäle. Eine
+// Ambisonics-Aufnahme hat hier 16 und speichert damit den Klang aus ALLEN
+// Richtungen gleichzeitig. Dreht man den Kopf, rechnet Resonance daraus in
+// Echtzeit aus, was man jetzt links und rechts hören müsste.
+//
+// Solche Aufnahmen laufen NICHT durch Tone.js, sondern direkt in Resonance.
+// Wir nennen so eine Aufnahme hier ein "Bett": eine Klangschicht, die unter
+// allem anderen liegt. Ein Bett besteht aus drei Teilen:
+//   buffer – die fertig geladene Aufnahme im Speicher
+//   gain   – der Lautstärke-Regler
+//   quelle – der Abspieler
+//
+// Wichtig: So ein Abspieler ist EINWEG, er lässt sich nur ein einziges Mal
+// starten. Deshalb merken wir uns die Aufnahme (buffer) und bauen bei jedem
+// Start einen frischen Abspieler daraus. Nur so kann der nächste Besucher
+// wieder von vorne beginnen.
 
-// ─── KONSTANTEN FÜR DIE KUGELN (SZENE 1) ───────────────────────────────────
-const DIST_FAR  = 6;   // Meter: Start-Entfernung der Kugel
-const DIST_NEAR = 1;   // Meter: hier gilt sie als "eingefangen"
-const ALIGNMENT_THRESHOLD = 0.8; // wie genau man hinschauen muss (1 = exakt)
-const RETREAT_SPEED = 1;         // m/s: so schnell weicht sie beim Wegschauen zurück
-const EINFADE_SEK = 2;           // Sekunden: sanftes Auftauchen der Kugel
-
-// ─── KONSTANTEN FÜR DEN FINK (SZENE 2) ─────────────────────────────────────
-// Der Kopf wird zum Abspielregler: ganz links = Originaltempo,
-// ganz rechts = stark verlangsamt (und dadurch tiefer – wie eine Bandmaschine).
-const FINK_YAW_LINKS  =  Math.PI / 2; // +90° = ganz links → Original
-const FINK_YAW_RECHTS = -Math.PI / 2; // -90° = ganz rechts → maximal langsam
-const FINK_MIN_RATE   = 0.15;         // tiefster Punkt: ~15% Tempo
-const FINK_DIST       = 2;            // Meter: wie weit vor den Augen der Vogel hängt
-const AMBI_MIN_RATE   = 0.1;          // Natur-Bett bei "ganz rechts": 10% Tempo
-const FINK_LOOP_MIN   = 0.4;          // kürzeste Loop-Länge (schneidet die Stille ab)
-
-// ─── KONSTANTEN FÜR DEN MUSIK-RAUM (SZENE 3) ───────────────────────────────
-// Jedes Instrument hat einen Winkel im Halbkreis vor dem Hörer und einen
-// aktuellen Pegel von 0 (stumm) bis 1 (voll). Der "Lupe"-Scanner im tick()
-// fadet ein, was man anschaut, und lässt den Rest langsam ausklingen.
-// TODO: Perkussion fehlt noch als Audio-Datei (siehe skript.txt) –
-//       einfach hier als 5. Eintrag ergänzen, sobald sie existiert.
-const orchester = [
-  { name: 'cello',   winkel:  80, pegel: 0 }, // ganz rechts
-  { name: 'gitarre', winkel:  40, pegel: 0 }, // halb rechts
-  { name: 'klavier', winkel: -40, pegel: 0 }, // halb links
-  { name: 'floete',  winkel: -80, pegel: 0 }, // ganz links
-];
-const SCANNER_BEAM_HALB  = 25;  // Grad: halbe Breite der "Lupe"
-const SCANNER_ATTACK_SEK = 2.5; // schnelles Einfaden beim Anschauen
-const SCANNER_DECAY_SEK  = 5;   // langsames Ausklingen nach dem Wegschauen
-
-// ─── TIMING DER SZENEN-ÜBERGÄNGE (aus skript.txt) ──────────────────────────
-const INTRO_SWOOSH_NACH_SEK   = 6.5; // Swoosh + Natur mitten in der Intro-Stimme
-const FINK_SPIELZEIT_SEK      = 15;  // freies Spielen, bevor die End-Stimme kommt
-const FINK_ENDE_PAUSE_SEK     = 5;   // Pause nach "…ganze Melodie steckt?"
-const MUSIK_OUTRO_NACH_SEK    = 2;   // Outro-Stimme kurz nach der Szene-3-Stimme
-
-
-// ─── AUDIO-ZUSTAND ─────────────────────────────────────────────────────────
-// Alles startet als null/leer und wird EINMAL in initAudio() befüllt.
-let audioCtx        = null;
-let resonanceScene  = null;
-let voiceSource     = null; // Resonance-Quelle für alle Stimmen (wandert je Szene)
-let fxSource        = null; // Resonance-Quelle für Effekte (Swoosh), fix vorne
-let isPlaying       = false;
-let audioInitStarted = false; // verhindert doppeltes initAudio()
-let startPending    = false;  // Kopfhörer aufgesetzt, bevor Audio fertig geladen war
-
-const sounds = {}; // Stimmen + Swoosh + Success
-
-// Natur-Betten: Ambisonics-Dateien (16 Kanäle) laufen NICHT durch Tone.js,
-// sondern direkt in den ambisonicInput von Resonance. Wichtig für die
-// Installation: BufferSources sind EINWEG (nur einmal startbar) – deshalb
-// merken wir uns hier den dekodieren BUFFER und bauen bei jedem Start eine
-// frische Source daraus. So kann jeder Besucher wieder von vorn beginnen.
-// nature1 = Wiese/Insekten (Szene 1), nature2 = "Low Nature" (Szene 2, pitchbar).
-const nature1 = { buffer: null, gain: null, source: null };
-const nature2 = { buffer: null, gain: null, source: null };
-
-// Die zwei Kugeln aus Szene 1. richtung -1 = links, +1 = rechts.
-// Jede hat 3 Klang-Schichten (Layer), die beim Näherkommen dazukommen.
-// tempo wird im tick() angepasst (nah = langsamer, damit das Ende spürbar ist).
-const kugel1 = { richtung: -1, dist: DIST_FAR, tempo: 0.8, mesh: null, quelle: null, player: [], vols: [] };
-const kugel2 = { richtung:  1, dist: DIST_FAR, tempo: 0.8, mesh: null, quelle: null, player: [], vols: [] };
-
-const fink  = { player: null, vol: null, quelle: null, rate: 1, loop: 0 };
-const musik = {}; // basis + Instrumente (player, vol, quelle je Name)
-
-
-// ─── TIMEOUT-VERWALTUNG ────────────────────────────────────────────────────
-// Die Szenen verketten sich über setTimeout. Wird der Kopfhörer mittendrin
-// abgelegt, müssen ALLE noch ausstehenden Übergänge gelöscht werden – sonst
-// startet z.B. 15 Sekunden später die Fink-End-Stimme in die Stille hinein.
-// Deshalb: Szenen benutzen spaeter() statt setTimeout, und der Reset räumt auf.
-let szenenTimeouts = [];
-
-function spaeter(fn, ms) {
-  const id = setTimeout(fn, ms);
-  szenenTimeouts.push(id);
-  return id;
-}
-
-function alleTimeoutsLoeschen() {
-  for (const id of szenenTimeouts) clearTimeout(id);
-  szenenTimeouts = [];
-}
-
-
-// ─── FADE-HELFER FÜR DIE NATUR-BETTEN ──────────────────────────────────────
-// Native BufferSources haben kein rampTo wie Tone – wir rampen den Gain-Node.
-
-// Baut eine FRISCHE Source aus dem gespeicherten Buffer und fadet sie ein.
-function starteAmbi(bett, dauerSek = 2, zielGain = 1) {
+// Startet ein Bett als Endlos-Loop und fadet es sanft ein.
+function starteBett(bett, dauerSek, zielLautstaerke) {
   const jetzt = audioCtx.currentTime;
-  bett.source = audioCtx.createBufferSource();
-  bett.source.buffer = bett.buffer;
-  bett.source.loop = true;
-  bett.source.connect(bett.gain);
-  // Gain auf 0 setzen BEVOR wir starten, sonst blitzt kurz volle Lautstärke auf.
+
+  bett.quelle = audioCtx.createBufferSource();
+  bett.quelle.buffer = bett.buffer;
+  bett.quelle.loop = true;
+  bett.quelle.connect(bett.gain);
+
+  // Erst die Lautstärke auf 0 stellen, DANN starten –
+  // sonst blitzt für einen Moment die volle Lautstärke auf.
   bett.gain.gain.cancelScheduledValues(jetzt);
   bett.gain.gain.setValueAtTime(0, jetzt);
-  bett.source.start();
-  bett.gain.gain.linearRampToValueAtTime(zielGain, jetzt + dauerSek);
+  bett.quelle.start();
+  bett.gain.gain.linearRampToValueAtTime(zielLautstaerke, jetzt + dauerSek);
 }
 
-// Fadet aus und stoppt die Source danach wirklich (sonst hört man den Cut).
-function stoppeAmbi(bett, dauerSek = 2) {
-  if (!bett.source) return; // läuft gar nicht
-  const source = bett.source;
-  bett.source = null;
+// Dasselbe für die Swooshes: einmal durchlaufen lassen, ohne Loop und ohne
+// Fade – ein Übergangsgeräusch soll ja sofort da sein.
+function spieleBettEinmal(bett) {
+  const jetzt = audioCtx.currentTime;
+
+  bett.quelle = audioCtx.createBufferSource();
+  bett.quelle.buffer = bett.buffer;
+  bett.quelle.connect(bett.gain);
+
+  bett.gain.gain.cancelScheduledValues(jetzt);
+  bett.gain.gain.setValueAtTime(1, jetzt);
+  bett.quelle.start();
+}
+
+// Fadet ein Bett aus und stoppt es danach wirklich –
+// ohne das Stoppen würde es leise weiterlaufen und Rechenzeit fressen.
+function stoppeBett(bett, dauerSek) {
+  if (!bett.quelle) return; // läuft gerade gar nicht
+
+  const alteQuelle = bett.quelle;
+  bett.quelle = null;
+
   const jetzt = audioCtx.currentTime;
   bett.gain.gain.cancelScheduledValues(jetzt);
   bett.gain.gain.setValueAtTime(bett.gain.gain.value, jetzt);
   bett.gain.gain.linearRampToValueAtTime(0, jetzt + dauerSek);
-  // bewusst natives setTimeout: dieses Aufräumen soll auch einen Reset überleben
-  setTimeout(() => source.stop(), dauerSek * 1000);
+
+  // Hier absichtlich setTimeout statt spaeter(): dieses Aufräumen soll auch
+  // dann noch passieren, wenn zwischendurch alles zurückgesetzt wird.
+  setTimeout(() => alteQuelle.stop(), dauerSek * 1000);
 }
 
-// Lädt eine Datei und loggt den Fortschritt – bei den großen Ambix-Dateien
-// (70+ MB) will man sehen, dass etwas passiert.
-async function ladeMitProzent(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP-Fehler beim Laden von ${url}: ${res.status}`);
+// Lädt eine Ambisonics-Datei, packt sie aus und hängt den Regler an Resonance.
+// Der Abspieler entsteht erst später in starteBett() – jedes Mal frisch.
+// Der Fortschritt landet in der Konsole: Bei über 100 MB pro Datei will man
+// beim Entwickeln sehen, dass überhaupt etwas passiert.
+async function ladeBett(bett, url) {
+  const antwort = await fetch(url);
+  if (!antwort.ok) throw new Error(`Konnte ${url} nicht laden (${antwort.status})`);
 
-  const total = parseInt(res.headers.get('content-length') || '0', 10);
-  const reader = res.body.getReader();
-  let loaded = 0, chunks = [];
+  const gesamt  = Number(antwort.headers.get('content-length')) || 0;
+  const leser   = antwort.body.getReader();
+  const stuecke = [];
+  let geladen = 0;
 
   while (true) {
-    const { done, value } = await reader.read();
+    const { done, value } = await leser.read();
     if (done) break;
-    chunks.push(value);
-    loaded += value.length;
-    if (total > 0) {
-      console.log(`Lade ${url}: ${Math.round((loaded / total) * 100)}%`);
+    stuecke.push(value);
+    geladen += value.length;
+    if (gesamt > 0) console.log(`Lade ${url}: ${Math.round(geladen / gesamt * 100)}%`);
+  }
+
+  // Alle Stücke zu einer Datei zusammensetzen und in Audio umwandeln.
+  const rohdaten = await new Blob(stuecke).arrayBuffer();
+  bett.buffer = await audioCtx.decodeAudioData(rohdaten);
+
+  bett.gain = audioCtx.createGain();
+  bett.gain.gain.value = 0; // startet stumm
+  bett.gain.connect(resonanceScene.ambisonicInput);
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  TEIL 5 – HEADTRACKING
+//  Eine kleine App auf dem Mac (headtracker_bridge) liest die Bewegungsdaten
+//  der AirPods aus und schickt sie als Nachricht an diesen Browser-Tab.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const ws = new WebSocket('ws://localhost:8080');
+
+// Die AirPods wissen nicht, wo "geradeaus" ist – ihr Nullpunkt ist zufällig.
+// Deshalb merken wir uns eine Messung als Nullstellung und ziehen sie ab.
+let rohYaw = 0, rohPitch = 0, rohRoll = 0;
+let nullYaw = 0, nullPitch = 0, nullRoll = 0;
+let schonKalibriert = false;
+
+// Für die Kopfhörer-Erkennung (Einstellungen dazu stehen in TEIL 2).
+let kopfhoererAuf  = false;
+let vergleichsYaw  = 0; // der zuletzt gemerkte Bewegungspunkt
+let letzteBewegung = 0; // Zeitpunkt der letzten echten Bewegung
+
+// Diese Funktion läuft jedes Mal, wenn eine neue Messung ankommt.
+ws.onmessage = (nachricht) => {
+  const daten = JSON.parse(nachricht.data);
+  rohYaw   = daten.yaw;
+  rohPitch = daten.pitch;
+  rohRoll  = daten.roll;
+
+  // Die allererste Messung wird zur Nullstellung.
+  if (!schonKalibriert) {
+    setzeNullstellung();
+    schonKalibriert = true;
+  }
+
+  yaw   = rohYaw   - nullYaw;
+  pitch = rohPitch - nullPitch;
+  roll  = rohRoll  - nullRoll;
+
+  const jetzt = performance.now();
+
+  // Hat sich der Kopf seit dem letzten gemerkten Punkt deutlich bewegt?
+  // Wir vergleichen bewusst NICHT mit der letzten Messung, sondern mit dem
+  // zuletzt gemerkten Bewegungspunkt – so sind doppelt gesendete Messungen
+  // (die Bridge sendet schneller, als die AirPods liefern) automatisch harmlos.
+  if (Math.abs(yaw - vergleichsYaw) > BEWEGUNGS_SCHWELLE) {
+    vergleichsYaw = yaw;
+    letzteBewegung = jetzt;
+
+    // AUFGESETZT: es bewegt sich wieder, obwohl der Kopfhörer als "ab" galt.
+    if (!kopfhoererAuf) {
+      kopfhoererAuf = true;
+      beiKopfhoererAuf();
     }
   }
 
-  const result = new Uint8Array(loaded);
-  let pos = 0;
-  for (const c of chunks) { result.set(c, pos); pos += c.length; }
-  return result.buffer;
-}
+  // ABGELEGT: schon lange keine Bewegung mehr.
+  if (kopfhoererAuf && jetzt - letzteBewegung > AB_TIMEOUT_MS) {
+    kopfhoererAuf = false;
+    beiKopfhoererAb();
+  }
+};
 
-// Lädt ein Ambisonics-Bett: dekodieren → Buffer merken, Gain verkabeln.
-// Die Source selbst entsteht erst in starteAmbi() – jedes Mal frisch.
-async function ladeAmbiBett(url) {
-  const arrayBuffer = await ladeMitProzent(url);
-  const buffer = await audioCtx.decodeAudioData(arrayBuffer);
-  const gain = audioCtx.createGain();
-  gain.gain.value = 0;
-  gain.connect(resonanceScene.ambisonicInput);
-  return { buffer, gain, source: null };
+// Die aktuelle Kopfhaltung wird als neues "geradeaus" gespeichert.
+function setzeNullstellung() {
+  nullYaw   = rohYaw;
+  nullPitch = rohPitch;
+  nullRoll  = rohRoll;
 }
 
 
-// ─── AUDIO LADEN ───────────────────────────────────────────────────────────
-// Hier wird NUR geladen und verkabelt – abgespielt wird erst in den Szenen.
+// ═══════════════════════════════════════════════════════════════════════════
+//  TEIL 6 – AUDIO LADEN UND VERKABELN
+//  Läuft genau EINMAL beim Start der Seite und von oben nach unten durch:
+//  Zentrale bauen → Stimmen → Ambisonics → Kugeln → Fink → Musik-Raum.
+//  Hier wird nur geladen und zusammengesteckt, abgespielt wird in TEIL 7.
+// ═══════════════════════════════════════════════════════════════════════════
+
+let ladenGestartet = false;
 
 async function initAudio() {
-  if (audioInitStarted) return;
-  audioInitStarted = true;
+  if (ladenGestartet) return; // nicht zweimal laden
+  ladenGestartet = true;
 
-  // Ein AudioContext für alles – Tone.js und Resonance teilen ihn sich.
+  // ─── Die Audio-Zentrale des Browsers ───
   audioCtx = new AudioContext();
-  await audioCtx.resume();
-  Tone.setContext(new Tone.Context(audioCtx));
 
-  // Falls Chrome den Context im Dauerbetrieb mal pausiert (Tab im Hintergrund),
-  // holen wir ihn automatisch zurück. Wichtig für die Ausstellung: der Context
-  // wird EINMAL erzeugt und läuft den ganzen Tag – Kopfhörer auf/ab steuert
-  // nur das Playback, nicht den Context.
+  // resume() weckt die Zentrale auf. Das await ist wichtig: Blockiert der
+  // Browser Audio (weil noch niemand geklickt hat), warten wir hier so lange,
+  // bis der erste Klick kommt – siehe TEIL 10.
+  await audioCtx.resume();
+  Tone.setContext(new Tone.Context(audioCtx)); // Tone.js nutzt dieselbe Zentrale
+
+  // Chrome pausiert die Zentrale manchmal von selbst (z.B. wenn der Tab lange
+  // im Hintergrund liegt). Dann holen wir sie automatisch zurück.
   audioCtx.onstatechange = () => {
     if (audioCtx.state === 'suspended') audioCtx.resume();
   };
 
-  // Resonance baut einen virtuellen Raum. ambisonicOrder 3 = hohe räumliche
-  // Auflösung. Die Materialien schlucken viel Schall → wenig Hall, der Klang
-  // bleibt auch nah an der Quelle trocken.
+  // ─── Der virtuelle Raum ───
+  // ambisonicOrder 3 = hohe räumliche Auflösung.
+  //
+  // Die Wandmaterialien entscheiden, wie viel Hall entsteht: Jede Fläche wirft
+  // Schall zurück, und diese Rückwürfe hört man als Hall. 'transparent' heißt
+  // "diese Wand wirft gar nichts zurück" – der Raum ist damit komplett trocken.
+  // Nur so bleiben die Stimmen klar verständlich; die Richtung hört man trotzdem,
+  // die kommt vom binauralen Rendering und nicht vom Hall.
+  //
+  // Zum Ausprobieren: einzelne Flächen auf 'uniform' (etwas Raum) oder
+  // 'parquet-on-concrete' (harter Boden, viel Hall) stellen. Je größer der Raum
+  // und je härter das Material, desto halliger.
+  //
+  // Die Ambisonics-Betten (TEIL 4) gehen NICHT durch diesen Raum, sie hängen
+  // direkt am ambisonicInput – ihre Räumlichkeit steckt schon in der Aufnahme.
   resonanceScene = new ResonanceAudio(audioCtx, { ambisonicOrder: 3 });
   resonanceScene.output.connect(audioCtx.destination);
   resonanceScene.setRoomProperties(
     { width: 10, height: 4, depth: 10 },
     {
-      left: 'curtain-heavy', right: 'curtain-heavy',
-      front: 'curtain-heavy', back: 'curtain-heavy',
-      down: 'parquet-on-concrete', up: 'acoustic-ceiling-tiles'
+      left:  'transparent', right: 'transparent',
+      front: 'transparent', back:  'transparent',
+      down:  'transparent', up:    'transparent',
     }
   );
 
-  // ─── STIMMEN + EFFEKTE ───
-  // Alle Stimmen laufen durch EINE Resonance-Quelle. Die steht normalerweise
-  // 2 m VOR dem Hörer (-Z) – in Szene 1 wandert sie nach links/rechts, damit
-  // die Stimme aus der Richtung kommt, in die man schauen soll.
-  voiceSource = resonanceScene.createSource();
-  voiceSource.setPosition(0, 0, -2);
-  fxSource = resonanceScene.createSource();
-  fxSource.setPosition(0, 0, -2);
+  // ─── Die Stimmen ───
+  // Alle Ansagen laufen durch EINE Quelle im Raum. Die steht normalerweise
+  // 2 Meter vor dem Hörer – in Szene 1 wandert sie nach links bzw. rechts,
+  // damit die Stimme aus genau der Richtung kommt, in die man schauen soll.
+  stimmQuelle = resonanceScene.createSource();
+  stimmQuelle.setPosition(0, 0, -2);
 
-  // Tone.Player dekodiert die Dateien komplett in den RAM – gut für kurze
-  // Files (Stimmen, Effekte), NICHT für die großen Ambix-Betten.
-  sounds.voiceIntro      = new Tone.Player('/voice_intro.wav').connect(voiceSource.input);
-  sounds.voiceS1Links    = new Tone.Player('/voice_szene1_links.wav').connect(voiceSource.input);
-  sounds.voiceS1Links.volume.value = 2;
-  sounds.voiceS1Rechts   = new Tone.Player('/voice_szene1_rechts.wav').connect(voiceSource.input);
-  sounds.voiceS1Profi    = new Tone.Player('/voice_szene1_profi.wav').connect(voiceSource.input);
-  sounds.voiceS2Fink     = new Tone.Player('/voice_szene2_fink.wav').connect(voiceSource.input);
-  sounds.voiceS2Ende     = new Tone.Player('/voice_szene2_ende.wav').connect(voiceSource.input);
-  sounds.voiceS3         = new Tone.Player('/voice_szene3.wav').connect(voiceSource.input);
-  sounds.voiceOutro      = new Tone.Player('/voice_outro.wav').connect(voiceSource.input);
+  stimme.intro    = new Tone.Player(DATEIEN.introStimme).connect(stimmQuelle.input);
+  stimme.s1Links  = new Tone.Player(DATEIEN.s1Stimme1).connect(stimmQuelle.input);
+  stimme.s1Rechts = new Tone.Player(DATEIEN.s1Stimme2).connect(stimmQuelle.input);
+  stimme.s2Fink   = new Tone.Player(DATEIEN.s2Stimme1).connect(stimmQuelle.input);
+  stimme.s2Ende   = new Tone.Player(DATEIEN.s2Stimme2).connect(stimmQuelle.input);
+  stimme.s3       = new Tone.Player(DATEIEN.s3Stimme1).connect(stimmQuelle.input);
 
-  sounds.swoosh = new Tone.Player('/swoosh.wav').connect(fxSource.input);
-  sounds.swoosh.volume.value = 2;
-  sounds.success = new Tone.Player('/success.wav').connect(fxSource.input);
-  sounds.success.volume.value = -9;
+  // Die Ansage von links kam bisher zu präsent (sie steht ja auch näher am Ohr
+  // als die anderen). Deshalb hier 3 dB unter den Rest.
+  stimme.s1Links.volume.value = -3;
 
-  // ─── NATUR-BETTEN (Ambisonics) ───
-  Object.assign(nature1, await ladeAmbiBett('/nature_ambix.wav'));
-  Object.assign(nature2, await ladeAmbiBett('/lowNature_ambix.wav'));
+  // ─── Die fünf Ambisonics-Dateien ───
+  // Bewusst NACHEINANDER (jedes await wartet auf das vorherige): zusammen sind
+  // das rund 400 MB, alles gleichzeitig auszupacken würde den Speicher sprengen.
+  await ladeBett(swooshIntro, DATEIEN.introSwoosh);
+  await ladeBett(nature1,     DATEIEN.s1Natur);
+  await ladeBett(swooshS2,    DATEIEN.s2Swoosh);
+  await ladeBett(nature2,     DATEIEN.s2Natur);
+  await ladeBett(natureFx,    DATEIEN.s2NaturFx);
 
-  // ─── KUGELN (SZENE 1) ───
-  // Jede Kugel: eigene Resonance-Quelle + 3 loopende Layer mit je einem
-  // Volume-Node. Alle starten stumm (-Infinity dB) – hörbar wird erst,
-  // was der tick() beim Näherkommen hochregelt.
-  for (const [kugel, praefix] of [[kugel1, 'kugel1'], [kugel2, 'kugel2']]) {
+  // ─── Die zwei Klangkugeln ───
+  // Jede bekommt eine eigene Stelle im Raum, einen sichtbaren Punkt und drei
+  // Loops mit je einem Lautstärke-Regler. Alle starten stumm (-Infinity dB) –
+  // hörbar wird erst, was TEIL 8 beim Näherkommen hochregelt.
+  for (const kugel of [kugel1, kugel2]) {
+    const dateiListe = kugel === kugel1 ? DATEIEN.s1Kugel1 : DATEIEN.s1Kugel2;
+
     kugel.quelle = resonanceScene.createSource();
-    kugel.quelle.setPosition(kugel.richtung * DIST_FAR, 0, 0);
-    kugel.mesh = kopf3d.macheKugel();
-    for (let i = 1; i <= 3; i++) {
-      const vol = new Tone.Volume(-Infinity);
-      vol.connect(kugel.quelle.input);
-      const player = new Tone.Player({ url: `/${praefix}_layer${i}.wav`, loop: true }).connect(vol);
-      kugel.vols.push(vol);
-      kugel.player.push(player);
+    kugel.quelle.setPosition(kugel.richtung * DIST_FERN, 0, 0);
+    kugel.kugel3d = kopf3d.macheKugel();
+
+    for (const url of dateiListe) { // Reihenfolge: fern → mittel → nah
+      const regler = new Tone.Volume(-Infinity);
+      regler.connect(kugel.quelle.input);
+      kugel.lautstaerken.push(regler);
+      kugel.spieler.push(new Tone.Player({ url, loop: true }).connect(regler));
     }
   }
 
-  // ─── FINK (SZENE 2) ───
-  // Der Vogel bekommt eine eigene Resonance-Quelle, die der tick() jede Frame
-  // FINK_DIST Meter in Blickrichtung setzt – so schwebt er immer vor den Augen,
-  // klingt aber mit echtem räumlichem Abstand statt flach im Kopf.
-  fink.quelle = resonanceScene.createSource();
-  fink.vol    = new Tone.Volume(-Infinity);
-  fink.player = new Tone.Player({ url: '/fink.wav', loop: true }).connect(fink.vol);
-  fink.vol.connect(fink.quelle.input);
+  // ─── Der Fink ───
+  // Er bekommt eine eigene Stelle im Raum. TEIL 8 schiebt sie jede Frame vor
+  // die Augen – so schwebt der Vogel immer in Blickrichtung, klingt aber mit
+  // echtem räumlichem Abstand statt flach im Kopf.
+  fink.quelle      = resonanceScene.createSource();
+  fink.lautstaerke = new Tone.Volume(-Infinity);
+  fink.spieler     = new Tone.Player({ url: DATEIEN.s2Fink, loop: true });
+  fink.spieler.connect(fink.lautstaerke);
+  fink.lautstaerke.connect(fink.quelle.input);
 
-  // ─── MUSIK-RAUM (SZENE 3) ───
-  // Basis-Fläche: läuft OHNE Resonance direkt stereo auf den Ausgang –
-  // sie soll den Raum füllen, nicht aus einer Richtung kommen.
-  musik.basisVol = new Tone.Volume(-Infinity).toDestination();
-  musik.basis    = new Tone.Player({ url: '/musik_basis.wav', loop: true, volume: -6 })
-    .connect(musik.basisVol);
+  // ─── Der Musik-Raum ───
+  // Die Basis-Fläche läuft OHNE Resonance direkt auf den Ausgang: Sie soll den
+  // ganzen Raum füllen und nicht aus einer bestimmten Richtung kommen.
+  basisLautstaerke = new Tone.Volume(-Infinity).toDestination();
+  basisSpieler = new Tone.Player({ url: DATEIEN.s3Basis, loop: true, volume: -6 })
+    .connect(basisLautstaerke);
 
-  // Die Instrumente stehen im Halbkreis VOR dem Hörer (Front = -Z).
-  // Aus Winkel + Radius wird die Position: x = R·sin(a), z = -R·cos(a).
-  const ORCH_RADIUS = 6;
-  for (const inst of orchester) {
-    const rad = inst.winkel * Math.PI / 180;
+  for (const instrument of orchester) {
+    // Aus den zwei Winkeln wird ein Pfeil der Länge 1 – die Richtung, in der
+    // das Instrument steht. "Geradeaus" ist im Audio-Raum -Z, daher das Minus.
+    const a = instrument.azimut * Math.PI / 180;
+    const h = instrument.hoehe  * Math.PI / 180;
+    instrument.x =  Math.cos(h) * Math.sin(a);
+    instrument.y =  Math.sin(h);
+    instrument.z = -Math.cos(h) * Math.cos(a);
+
+    // Den Pfeil auf den Abstand strecken – das ergibt die Position im Raum.
     const quelle = resonanceScene.createSource();
-    quelle.setPosition(ORCH_RADIUS * Math.sin(rad), 0, -ORCH_RADIUS * Math.cos(rad));
-    const vol = new Tone.Volume(-Infinity);
-    vol.connect(quelle.input);
-    const player = new Tone.Player({ url: `/musik_${inst.name}.wav`, loop: true, volume: -6 })
-      .connect(vol);
-    musik[inst.name] = { player, vol, quelle };
+    quelle.setPosition(
+      ORCH_ABSTAND * instrument.x,
+      ORCH_ABSTAND * instrument.y,
+      ORCH_ABSTAND * instrument.z
+    );
+
+    // Abspieler und Regler direkt am Instrument speichern –
+    // dann steht in TEIL 8 alles beisammen.
+    instrument.lautstaerke = new Tone.Volume(-Infinity);
+    instrument.lautstaerke.connect(quelle.input);
+    instrument.spieler = new Tone.Player({ url: instrument.datei, loop: true, volume: -6 })
+      .connect(instrument.lautstaerke);
   }
 
-  // Warten, bis ALLE Tone.Player ihre Dateien dekodiert haben.
-  await Tone.loaded();
-  isPlaying = true;
+  // ─── Fertig ───
+  await Tone.loaded(); // warten, bis alle Tone.js-Dateien ausgepackt sind
+
+  audioBereit = true;
   phase = 'warten';
   console.log('Audio komplett geladen – warte auf Kopfhörer.');
-  setzeHint('setz die Kopfhörer auf … · h = simulieren · r = reset');
+
+  const hinweis = document.getElementById('hint');
+  hinweis.textContent = HINWEIS_TEXT;
+  hinweis.classList.remove('hidden');
 
   // Falls jemand den Kopfhörer schon aufgesetzt hat, während wir noch luden:
   // die Experience jetzt nachholen, statt sie zu verschlucken.
-  if (startPending) {
-    startPending = false;
-    onHeadphonesOn();
+  if (startWartet) {
+    startWartet = false;
+    beiKopfhoererAuf();
   }
 }
 
 
-// ─── KOPFHÖRER-EVENTS ──────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+//  TEIL 7 – DER ABLAUF
+//  Eine Funktion pro Abschnitt aus dem Skript. Jede startet ihre Klänge selbst
+//  und gibt am Ende an die nächste weiter. Die Interaktion passiert nicht
+//  hier, sondern in TEIL 8.
+//
+//  Wie hängen die Funktionen zusammen?
+//
+//    intro ─→ szene1Links ─→ [Kugel einfangen] ─→ szene1Rechts
+//                                                      │
+//                    szene2 ←─ [Kugel einfangen] ←─────┘
+//                      │
+//                      └─→ szene2Ende ─→ szene3 ─→ Ende (Kopfhörer absetzen)
+//
+//  Zwei Arten von Übergang kommen vor:
+//    spaeter(…)         – nach einer festen Zeit
+//    .onstop = () => …  – sobald eine Ansage fertig gesprochen ist
+//
+//  In JEDEM Übergang steht "if (!laeuft) return;". Der Grund: Wenn jemand
+//  mittendrin den Kopfhörer absetzt, dürfen wartende Übergänge nichts mehr
+//  starten. laeuft ist der Hauptschalter dafür.
+// ═══════════════════════════════════════════════════════════════════════════
 
-// Feuert EINMAL, wenn jemand den Kopfhörer aufsetzt.
-function onHeadphonesOn() {
-  console.log('Kopfhörer AUFGESETZT');
-
-  if (!isPlaying) {
-    // Audio lädt noch – wir merken uns den Wunsch und starten nach dem Laden.
-    console.warn('Audio lädt noch – Experience startet automatisch, sobald fertig.');
-    startPending = true;
-    return;
-  }
-
-  // Die aktuelle Blickrichtung wird zur neuen Nullstellung ("geradeaus") –
-  // jeder Besucher setzt den Kopfhörer ja etwas anders auf.
-  reset();
-  starteExperience();
-}
-
-// Feuert, wenn der Kopfhörer lange genug still lag → alles auf Anfang.
-function onHeadphonesOff() {
-  console.log('Kopfhörer ABGELEGT – alles zurücksetzen');
-  startPending = false;
-  if (laeuft) stelleAllesZurueck();
-}
-
-// Der komplette Reset für den nächsten Besucher. Reihenfolge ist wichtig:
-// ERST laeuft=false setzen (damit stoppende Player über ihre onstop-Callbacks
-// keine neuen Szenen mehr anstoßen), DANN alles stoppen und zurücksetzen.
-function stelleAllesZurueck() {
-  laeuft = false;
-  phase = 'warten';
-  alleTimeoutsLoeschen();
-
-  // Alle Stimmen und Effekte stoppen (stop() auf einem stehenden Player ist harmlos).
-  for (const name of Object.keys(sounds)) sounds[name].stop();
-
-  // Natur-Betten kurz ausfaden und stoppen.
-  stoppeAmbi(nature1, 0.5);
-  stoppeAmbi(nature2, 0.5);
-
-  // Kugeln: Klang aus, Position zurück auf weit weg, unsichtbar.
-  // cancelScheduledValues: falls gerade noch eine rampTo-Fahrt läuft, würde
-  // sie unseren Reset-Wert sonst gleich wieder überschreiben.
-  for (const kugel of [kugel1, kugel2]) {
-    for (const vol of kugel.vols) {
-      vol.volume.cancelScheduledValues(0);
-      vol.volume.value = -Infinity;
-    }
-    for (const p of kugel.player) p.stop();
-    kugel.dist  = DIST_FAR;
-    kugel.tempo = 0.8;
-    kugel.quelle.setPosition(kugel.richtung * DIST_FAR, 0, 0);
-    kugel.mesh.visible = false;
-  }
-
-  // Fink: stoppen und den Abspielregler zurück auf Original.
-  fink.player.stop();
-  fink.player.playbackRate = 1;
-  fink.vol.volume.cancelScheduledValues(0);
-  fink.vol.volume.value = -Infinity;
-  fink.rate = 1;
-  fink.loop = 0;
-
-  // Musik-Raum: Basis + Instrumente stoppen, Scanner-Pegel nullen.
-  musik.basis.stop();
-  musik.basisVol.volume.cancelScheduledValues(0);
-  musik.basisVol.volume.value = -Infinity;
-  for (const inst of orchester) {
-    musik[inst.name].player.stop();
-    musik[inst.name].vol.volume.value = -Infinity;
-    inst.pegel = 0;
-  }
-
-  // Stimme zurück nach vorne für den nächsten Durchlauf.
-  voiceSource.setPosition(0, 0, -2);
-
-  setzeHint('setz die Kopfhörer auf … · h = simulieren · r = reset');
-}
-
-
-// ─── SZENEN ────────────────────────────────────────────────────────────────
-// Jede Funktion startet genau EINEN Abschnitt aus dem Skript und übergibt
-// am Ende an die nächste. Die Interaktion selbst passiert im tick().
-// Alle Verkettungen (onstop + spaeter) prüfen "laeuft" – nach einem Reset
-// darf nichts davon mehr feuern.
-
-// INTRO: "Hey, wenn du bereit bist…" – mitten in der Stimme öffnen Swoosh
-// und Natur-Ambix den Raum. Danach geht es nach Szene 1.
+// INTRO – "Hey, wenn du bereit bist, schließe gerne deine Augen…"
 function intro() {
   console.log('INTRO');
   phase = 'intro';
-  voiceSource.setPosition(0, 0, -2); // Stimme vorne
-  sounds.voiceIntro.start();
+  stimmQuelle.setPosition(0, 0, -2); // Stimme kommt von vorne
+  stimme.intro.start();
 
+  // Mitten in der Ansage öffnet der Swoosh den Raum und die Wiese fadet ein.
   spaeter(() => {
     if (!laeuft) return;
-    sounds.swoosh.start();
-    starteAmbi(nature1, 3, 0.3);
-  }, INTRO_SWOOSH_NACH_SEK * 1000);
+    spieleBettEinmal(swooshIntro);
+    starteBett(nature1, 3, 0.9);
+  }, INTRO_SWOOSH_NACH_SEK);
 
-  sounds.voiceIntro.onstop = () => {
+  stimme.intro.onstop = () => {
     if (!laeuft) return;
     szene1Links();
   };
 }
 
-// Blendet eine Kugel sanft ein und macht sie danach interaktiv.
-// Erst steht sie als statischer Punkt ganz weit weg und ihr Grund-Layer
-// fadet hoch – DANN darf der tick() sie auf den Blick reagieren lassen.
-function kugelStarten(kugel, naechstePhase) {
-  kugel.dist = DIST_FAR;
-  kugel.quelle.setPosition(kugel.richtung * DIST_FAR, 0, 0);
-  kugel.mesh.position.set(kugel.richtung * DIST_FAR, 0, 0);
-  kugel.mesh.visible = true;
-
-  for (const p of kugel.player) p.start();
-  kugel.vols[0].volume.rampTo(0, EINFADE_SEK); // nur Layer 1, Rest kommt beim Näherkommen
-
-  spaeter(() => { if (laeuft) phase = naechstePhase; }, EINFADE_SEK * 1000);
-}
-
-// Beendet eine eingefangene Kugel: Success-Sound, Klang aus, Kugel weg.
-function kugelEinfangen(kugel) {
-  sounds.success.start();
-  for (const vol of kugel.vols) vol.volume.value = -Infinity;
-  for (const p of kugel.player) p.stop();
-  kugel.mesh.visible = false;
-}
-
-// SZENE 1a: "Hey, hier bin ich. Dreh doch deinen Kopf mal nach links…"
+// SZENE 1a – "Hey, hier bin ich. Dreh doch deinen Kopf mal nach links zu mir…"
 function szene1Links() {
   console.log('SZENE 1 – Kugel links');
-  phase = 'intro'; // noch keine Interaktion, solange die Stimme spricht
-  voiceSource.setPosition(-2, 0, 0); // Stimme kommt von LINKS
+  phase = 'intro'; // solange die Stimme spricht, gibt es nichts zu tun
+
+  // Stimme kommt von LINKS – und zwar weiter weg als in den anderen Szenen.
+  // Direkt neben dem Ohr drückt sie zu sehr; aus 3.5 Metern bleibt die Richtung
+  // eindeutig, ohne dass es unangenehm wird. Dazu kommt der leisere Pegel in
+  // initAudio() (TEIL 6).
+  stimmQuelle.setPosition(-3.5, 0, 0);
+
   spaeter(() => {
     if (!laeuft) return;
-    sounds.voiceS1Links.start();
-    sounds.voiceS1Links.onstop = () => {
+    stimme.s1Links.start();
+
+    stimme.s1Links.onstop = () => {
       if (!laeuft) return;
-      kugelStarten(kugel1, 'kugel1');
+
+      // Die Kugel taucht auf: erst steht sie still ganz weit weg und ihr
+      // Fern-Loop fadet hoch – ERST DANN darf TEIL 8 sie auf den Blick
+      // reagieren lassen (phase = 'kugel1').
+      kugel1.dist = DIST_FERN;
+      kugel1.quelle.setPosition(kugel1.richtung * DIST_FERN, 0, 0);
+      kugel1.kugel3d.position.set(kugel1.richtung * DIST_FERN, 0, 0);
+      kugel1.kugel3d.visible = true;
+
+      for (const spieler of kugel1.spieler) spieler.start();
+      kugel1.lautstaerken[0].volume.rampTo(0, EINFADE_SEK);
+
+      spaeter(() => {
+        if (laeuft) phase = 'kugel1';
+      }, EINFADE_SEK);
     };
-  }, 3000);
+  }, PAUSE_VOR_LINKS_SEK);
 }
 
-// SZENE 1b: "Sehr gut. Jetzt dreh dich mal nach rechts…"
+// SZENE 1b – "Sehr gut. Jetzt dreh dich mal nach rechts…"
 function szene1Rechts() {
   console.log('SZENE 1 – Kugel rechts');
   phase = 'intro';
-  voiceSource.setPosition(2, 0, 0); // Stimme kommt von RECHTS
+  stimmQuelle.setPosition(2, 0, 0); // Stimme kommt von RECHTS
+
   spaeter(() => {
     if (!laeuft) return;
-    sounds.voiceS1Rechts.start();
-    sounds.voiceS1Rechts.onstop = () => {
+    stimme.s1Rechts.start();
+
+    stimme.s1Rechts.onstop = () => {
       if (!laeuft) return;
-      kugelStarten(kugel2, 'kugel2');
+
+      // Gleiches Auftauchen wie oben, diesmal mit der rechten Kugel.
+      kugel2.dist = DIST_FERN;
+      kugel2.quelle.setPosition(kugel2.richtung * DIST_FERN, 0, 0);
+      kugel2.kugel3d.position.set(kugel2.richtung * DIST_FERN, 0, 0);
+      kugel2.kugel3d.visible = true;
+
+      for (const spieler of kugel2.spieler) spieler.start();
+      kugel2.lautstaerken[0].volume.rampTo(0, EINFADE_SEK);
+
+      spaeter(() => {
+        if (laeuft) phase = 'kugel2';
+      }, EINFADE_SEK);
     };
-  }, 1500);
+  }, PAUSE_VOR_STIMME_SEK);
 }
 
-// SZENE 1 ENDE: "Jetzt bist du ja schon Profi im Klänge herbeilocken…"
-function szene1Profi() {
-  console.log('SZENE 1 – Ende');
-  phase = 'intro';
-  voiceSource.setPosition(0, 0, -2); // Stimme wieder vorne
-  spaeter(() => {
-    if (!laeuft) return;
-    sounds.voiceS1Profi.start();
-    sounds.voiceS1Profi.onstop = () => {
-      if (!laeuft) return;
-      szene2();
-    };
-  }, 1500);
-}
-
-// SZENE 2: Hausfink. Swoosh als Übergang, das Natur-Bett wechselt auf die
-// pitchbare "Low Nature"-Aufnahme, der Fink loopt vor den Augen.
-// Ab jetzt übersetzt der tick() jede Kopfdrehung in Abspielgeschwindigkeit.
+// SZENE 2 – der Hausfink.
+// Die Ansage s2_speech1 ist EINE lange Datei, die noch in Szene 1 anfängt
+// ("Jetzt bist du ja schon Profi im Klänge herbeilocken…") und dann zum
+// Hausfink überleitet. Deshalb läuft sie hier von Anfang bis Ende durch, und
+// der Raum wechselt MITTENDRIN: nach S2_SWOOSH_NACH_SEK, genau in der
+// Sprechpause vor "Wusstest du, dass…". Dasselbe Prinzip wie beim Intro.
+//
+// Der Fink kommt noch später – erst wenn die Stimme ganz fertig ist. Er soll
+// nicht in die Ansage hineinzwitschern. Ab da übersetzt TEIL 8 jede
+// Kopfdrehung in Tempo.
+//
+// Szene 2 hat ZWEI Ambisonics-Betten übereinander:
+//   nature2  – wird zusammen mit dem Fink verlangsamt (das ist die Zeitlupe)
+//   natureFx – bleibt im Originaltempo und legt nur leise Atmosphäre darunter,
+//              damit der Raum bei starker Verlangsamung nicht einschläft
 function szene2() {
   console.log('SZENE 2 – Fink');
-  sounds.swoosh.start();
-  stoppeAmbi(nature1, 4);
-  starteAmbi(nature2, 4, 0.3);
+  phase = 'intro'; // solange die Stimme spricht, gibt es nichts zu steuern
+  stimmQuelle.setPosition(0, 0, -2); // Stimme wieder nach vorne
 
-  fink.player.playbackRate = 1; // sicherheitshalber: frisch im Originaltempo
-  fink.player.start();
-  fink.vol.volume.rampTo(2, 1.5);
-  phase = 'fink'; // Interaktion läuft schon, während die Stimme erklärt
-
-  sounds.voiceS2Fink.start();
-  sounds.voiceS2Fink.onstop = () => {
+  spaeter(() => {
     if (!laeuft) return;
-    // freies Spielen, dann die Abschluss-Beobachtung
-    spaeter(() => szene2Ende(), FINK_SPIELZEIT_SEK * 1000);
+    spieleBettEinmal(swooshS2);
+    stoppeBett(nature1, 4);
+    starteBett(nature2, 4, 0.9);
+    starteBett(natureFx, 4, 0.45);
+  }, S2_SWOOSH_NACH_SEK);
+
+  stimme.s2Fink.start();
+  stimme.s2Fink.onstop = () => {
+    if (!laeuft) return;
+
+    fink.spieler.playbackRate = 1; // sicherheitshalber im Originaltempo starten
+    fink.spieler.start();
+    fink.lautstaerke.volume.rampTo(2, 1.5);
+
+    phase = 'fink'; // jetzt erst wird der Kopf zum Geschwindigkeitsregler
+
+    spaeter(szene2Ende, FINK_SPIELZEIT_SEK); // erst frei ausprobieren lassen
   };
 }
 
-// SZENE 2 ENDE: "Hör zum Schluss noch mal genauer hin…"
+// SZENE 2 ENDE – "Hör zum Schluss noch mal genauer hin…"
 function szene2Ende() {
+  if (!laeuft) return;
   console.log('SZENE 2 – Ende');
-  sounds.voiceS2Ende.start();
-  sounds.voiceS2Ende.onstop = () => {
+
+  stimme.s2Ende.start();
+  stimme.s2Ende.onstop = () => {
     if (!laeuft) return;
-    spaeter(() => szene3(), FINK_ENDE_PAUSE_SEK * 1000);
+    spaeter(szene3, FINK_ENDE_PAUSE_SEK);
   };
 }
 
-// SZENE 3: der musikalische Raum. Fink + Natur faden aus, die Basis-Fläche
-// fadet ein, die Instrumente laufen stumm los – hörbar macht sie nur der
-// "Lupe"-Scanner im tick(), je nachdem, wohin man schaut.
-function szene3(fadeSek = 5) {
+// SZENE 3 – der musikalische Raum.
+// Fink und Natur faden aus, die Basis-Fläche fadet ein. Die Instrumente laufen
+// alle mit, sind aber stumm – hörbar macht sie erst der Blick in TEIL 8.
+function szene3() {
+  if (!laeuft) return;
   console.log('SZENE 3 – Musik');
-  fink.vol.volume.rampTo(-Infinity, fadeSek);
-  spaeter(() => fink.player.stop(), fadeSek * 1000); // erst nach dem Fade stoppen
-  stoppeAmbi(nature2, fadeSek);
 
-  musik.basis.start();
-  musik.basisVol.volume.rampTo(-24, fadeSek);
-  for (const inst of orchester) musik[inst.name].player.start();
+  fink.lautstaerke.volume.rampTo(-Infinity, SZENE3_FADE_SEK);
+  spaeter(() => fink.spieler.stop(), SZENE3_FADE_SEK); // erst nach dem Fade
+  stoppeBett(nature2, SZENE3_FADE_SEK);
+  stoppeBett(natureFx, SZENE3_FADE_SEK);
+
+  basisSpieler.start();
+  basisLautstaerke.volume.rampTo(-24, SZENE3_FADE_SEK);
+  for (const instrument of orchester) instrument.spieler.start();
 
   phase = 'musik';
 
-  sounds.voiceS3.start();
-  sounds.voiceS3.onstop = () => {
-    if (!laeuft) return;
-    // "Wenn du genug gehört hast, darfst du deine Kopfhörer wieder absetzen."
-    spaeter(() => sounds.voiceOutro.start(), MUSIK_OUTRO_NACH_SEK * 1000);
-  };
+  // Die Ansage endet mit "Wenn du genug gehört hast, darfst du deine Kopfhörer
+  // wieder absetzen" – danach kommt nichts mehr. Die Szene läuft weiter, bis
+  // der Kopfhörer tatsächlich abgelegt wird (siehe TEIL 9).
+  stimme.s3.start();
 }
 
 
-// ─── TICK: DIE EINE SCHLEIFE ───────────────────────────────────────────────
-// requestAnimationFrame ruft tick() ~60x pro Sekunde auf. WICHTIG: tick()
-// darf nur EINMAL gestartet werden – sonst laufen mehrere Schleifen parallel
-// und alles (Bewegung, Fades) passiert doppelt so schnell.
-// Der tick läuft dauerhaft weiter (auch im 'warten'-Zustand), damit der
-// Drahtgitter-Kopf immer live ist – die Interaktion steuert die phase.
+// ═══════════════════════════════════════════════════════════════════════════
+//  TEIL 8 – JEDE FRAME
+//  requestAnimationFrame ruft tick() etwa 60-mal pro Sekunde auf. Das ist die
+//  Stelle, an der aus einer Kopfdrehung eine Reaktion wird. Alle drei
+//  Interaktionen stehen hier untereinander – welche dran ist, sagt phase.
+//
+//  WICHTIG: tick() darf nur EINMAL gestartet werden. Liefe die Schleife
+//  doppelt, würde alles doppelt so schnell passieren.
+// ═══════════════════════════════════════════════════════════════════════════
+
 let tickLaeuft = false;
 let letzteZeit = 0;
 
 function starteTick() {
-  if (tickLaeuft) return; // der Doppel-Tick-Schutz
+  if (tickLaeuft) return; // genau dieser Schutz
   tickLaeuft = true;
   letzteZeit = performance.now() / 1000;
   tick();
 }
 
-// Bewegt eine Kugel je nach Blick, regelt ihre 3 Klang-Schichten
-// und meldet zurück, ob sie eingefangen wurde (true/false).
-function updateKugel(kugel, deltaTime) {
-  // Schaue ich zur Kugel? (-richtung, weil Audio- und Visuell-Achse
-  // in diesem Projekt gespiegelt sind – Konvention aus den Prototypen.)
-  const blick = Math.max(0, getAlignment(-kugel.richtung, 0));
-
-  if (blick > ALIGNMENT_THRESHOLD) {
-    kugel.dist = Math.max(DIST_NEAR, kugel.dist - kugel.tempo * deltaTime);
-  } else {
-    kugel.dist = Math.min(DIST_FAR, kugel.dist + RETREAT_SPEED * deltaTime);
-  }
-
-  // Audio-Quelle und rote Kugel wandern gemeinsam.
-  kugel.quelle.setPosition(kugel.richtung * kugel.dist, 0, 0);
-  kugel.mesh.position.set(kugel.richtung * kugel.dist, 0, 0);
-
-  // naehe: 0 = ganz weit weg, 1 = direkt am Kopf.
-  const naehe = 1 - ((kugel.dist - DIST_NEAR) / (DIST_FAR - DIST_NEAR));
-
-  // Drei Schichten, die nacheinander dazukommen – je näher, desto voller
-  // der Klang. Werte in Dezibel: 0 = laut, -30 = sehr leise, -Infinity = aus.
-  kugel.vols[0].volume.value = -6 * naehe;
-  kugel.vols[1].volume.value = naehe > 0.1
-    ? lerp(-30, -6, (naehe - 0.1) / 0.75)
-    : -Infinity;
-  kugel.vols[2].volume.value = naehe > 0.3
-    ? lerp(-30, -6, (naehe - 0.3) / 0.45)
-    : -Infinity;
-
-  // Je näher die Kugel, desto langsamer kommt sie – so ist das Ankommen
-  // spürbar, ohne dass man ewig warten muss.
-  if (naehe > 0.8)      kugel.tempo = 0.3;
-  else if (naehe > 0.6) kugel.tempo = 0.7;
-  else                  kugel.tempo = 0.8;
-
-  return kugel.dist <= DIST_NEAR; // eingefangen?
-}
-
 function tick() {
+  // deltaZeit = wie viele Sekunden seit dem letzten Bild vergangen sind.
+  // Damit rechnen wir alle Bewegungen um, statt "pro Bild" – sonst liefe die
+  // Experience auf einem schnelleren Rechner schneller ab.
   const jetzt = performance.now() / 1000;
-  const deltaTime = jetzt - letzteZeit;
+  const deltaZeit = jetzt - letzteZeit;
   letzteZeit = jetzt;
 
-  // 1. Drahtgitter-Kopf drehen (rein visuell, wohnt in 3dhead.js)
+  // Wohin schaue ich gerade? Ein Pfeil der Länge 1, einmal pro Bild berechnet
+  // und unten mehrfach benutzt. "Geradeaus" ist im Audio-Raum -Z.
+  const blickX =  Math.sin(yaw) * Math.cos(pitch);
+  const blickY =  Math.sin(pitch);
+  const blickZ = -Math.cos(yaw) * Math.cos(pitch);
+
+  // ─── 1. Den Drahtgitter-Kopf auf dem Bildschirm mitdrehen ───
   kopf3d.setzeKopfDrehung(yaw, pitch, roll);
 
-  // 2. Resonance sagen, wie der Kopf im Raum steht – sonst stimmt der
-  // 3D-Klang nicht. Aus yaw/pitch wird ein Blick-Vektor.
-  if (isPlaying) {
-    const fwdX =  Math.sin(yaw) * Math.cos(pitch);
-    const fwdY =  Math.sin(pitch);
-    const fwdZ = -Math.cos(yaw) * Math.cos(pitch);
-    resonanceScene.setListenerOrientation(fwdX, fwdY, fwdZ, 0, 1, 0);
+  // ─── 2. Resonance sagen, wohin der Kopf schaut ───
+  // Ohne das würde der 3D-Klang nicht mitdrehen.
+  if (audioBereit) {
+    resonanceScene.setListenerOrientation(blickX, blickY, blickZ, 0, 1, 0);
   }
 
-  // 3. Interaktion – je nachdem, in welcher Phase wir sind.
+  // ─── 3. SZENE 1: eine Kugel herbeilocken ───
+  if (audioBereit && (phase === 'kugel1' || phase === 'kugel2')) {
+    const kugel = phase === 'kugel1' ? kugel1 : kugel2;
 
-  // SZENE 1: Kugel links bzw. rechts herbeilocken.
-  if (isPlaying && phase === 'kugel1') {
-    if (updateKugel(kugel1, deltaTime)) {
-      kugelEinfangen(kugel1);
-      szene1Rechts();
+    // Schaue ich zur Kugel hin? Multipliziert man zwei Pfeile der Länge 1
+    // (x·x + y·y + z·z), bekommt man heraus, wie ähnlich ihre Richtungen sind:
+    // 1 = genau drauf, 0 = seitlich, -1 = abgewandt. Die Kugel liegt genau
+    // seitlich, ihr Pfeil ist also (-richtung, 0, 0) – übrig bleibt eine
+    // einzige Multiplikation.
+    // Das Minus vor richtung ist Absicht: Audio-Achse und Bild-Achse sind in
+    // diesem Projekt gespiegelt. Nicht "korrigieren", so stimmt es.
+    const schautHin = blickX * -kugel.richtung > BLICK_GENAUIGKEIT;
+
+    // Hinschauen zieht die Kugel heran, Wegschauen lässt sie zurückweichen.
+    if (schautHin) {
+      kugel.dist = Math.max(kugel.nahDist, kugel.dist - kugel.tempo * deltaZeit);
+    } else {
+      kugel.dist = Math.min(DIST_FERN, kugel.dist + RUECKZUG_TEMPO * deltaZeit);
+    }
+
+    // Klang und sichtbarer Punkt wandern gemeinsam.
+    kugel.quelle.setPosition(kugel.richtung * kugel.dist, 0, 0);
+    kugel.kugel3d.position.set(kugel.richtung * kugel.dist, 0, 0);
+
+    // naehe: 0 = ganz weit weg, 1 = so nah wie diese Kugel kommen darf.
+    const naehe = 1 - (kugel.dist - kugel.nahDist) / (DIST_FERN - kugel.nahDist);
+
+    // Die drei Loops kommen nacheinander dazu: der Fern-Loop ist immer zu
+    // hören, der mittlere ab 10 % Nähe, der nahe ab 30 %. Die Werte sind
+    // Dezibel: 0 = laut, -30 = sehr leise, -Infinity = ganz aus.
+    // kugel.pegel kommt überall dazu – damit lässt sich eine ganze Kugel
+    // leiser stellen, ohne die Kurven anzufassen (siehe TEIL 3).
+    kugel.lautstaerken[0].volume.value = -6 * naehe + kugel.pegel;
+
+    if (naehe > 0.1) kugel.lautstaerken[1].volume.value = lerp(-30, -6, (naehe - 0.1) / 0.75) + kugel.pegel;
+    else             kugel.lautstaerken[1].volume.value = -Infinity;
+
+    if (naehe > 0.3) kugel.lautstaerken[2].volume.value = lerp(-30, -6, (naehe - 0.3) / 0.45) + kugel.pegel;
+    else             kugel.lautstaerken[2].volume.value = -Infinity;
+
+    // Kurz vor dem Ziel wird die Kugel langsamer. So ist das Ankommen spürbar,
+    // ohne dass man ewig warten muss.
+    if (naehe > 0.8)      kugel.tempo = 0.3;
+    else if (naehe > 0.6) kugel.tempo = 0.7;
+    else                  kugel.tempo = 0.8;
+
+    // Angekommen? Dann ist sie eingefangen. (Einen extra Erfolgs-Ton gibt es
+    // nicht – die Belohnung ist der Nah-Loop, den man kurz vorher in voller
+    // Lautstärke hört.)
+    //
+    // Sie wird NICHT hart abgeschaltet, sondern fadet über AUSFADE_SEK aus:
+    // ein abruptes Abreißen klingt nach Fehler, ein Ausklingen nach "gefangen".
+    // Die nächste Szene wird trotzdem sofort angestoßen – sie beginnt mit ihrer
+    // eigenen Pause, die Stimme setzt also genau dann ein, wenn der Klang weg
+    // ist. Und weil die Szene phase sofort umstellt, rechnet der Block hier
+    // oben nicht mehr gegen den Fade an.
+    if (kugel.dist <= kugel.nahDist) {
+      for (const regler of kugel.lautstaerken) regler.volume.rampTo(-Infinity, AUSFADE_SEK);
+
+      spaeter(() => {
+        for (const spieler of kugel.spieler) spieler.stop();
+        kugel.kugel3d.visible = false;
+      }, AUSFADE_SEK);
+
+      if (phase === 'kugel1') {
+        szene1Rechts(); // stellt phase selbst um
+      } else {
+        // Nach der zweiten Kugel geht es direkt in Szene 2. phase MUSS hier
+        // sofort umgestellt werden – sonst wäre dist immer noch <= nahDist und
+        // dieser Block würde in der nächsten Frame gleich noch einmal starten.
+        phase = 'intro';
+        spaeter(szene2, PAUSE_VOR_STIMME_SEK);
+      }
     }
   }
-  if (isPlaying && phase === 'kugel2') {
-    if (updateKugel(kugel2, deltaTime)) {
-      kugelEinfangen(kugel2);
-      szene1Profi();
-    }
-  }
 
-  // SZENE 2: Kopfdrehung → Abspielgeschwindigkeit von Fink + Natur-Bett.
-  if (isPlaying && phase === 'fink') {
-    // t: 0 = ganz links (Original), 1 = ganz rechts (maximal langsam)
+  // ─── 4. SZENE 2: Kopfdrehung wird zur Geschwindigkeit ───
+  if (audioBereit && phase === 'fink') {
+    // t beschreibt, wie weit rechts der Kopf steht: 0 = ganz links, 1 = ganz rechts.
     const t = (FINK_YAW_LINKS - yaw) / (FINK_YAW_LINKS - FINK_YAW_RECHTS);
 
     // playbackRate wirkt wie eine Bandmaschine: langsamer UND tiefer.
-    // Jede Frame neu gesetzt sind die Schritte so klein, dass es gleitet.
-    fink.rate = lerp(1, FINK_MIN_RATE, t);
-    fink.player.playbackRate = fink.rate;
+    // Weil wir das jede Frame neu setzen, sind die Schritte so klein,
+    // dass es sich stufenlos anfühlt.
+    fink.tempo = lerp(1, FINK_MIN_TEMPO, t);
+    fink.spieler.playbackRate = fink.tempo;
 
-    // Das Natur-Bett macht dieselbe Bewegung mit – alle 16 Ambisonics-Kanäle
-    // werden identisch verlangsamt, deshalb bleiben die Richtungen erhalten.
-    if (nature2.source) nature2.source.playbackRate.value = lerp(1, AMBI_MIN_RATE, t);
+    // Das Natur-Bett macht dieselbe Bewegung mit. Alle 16 Ambisonics-Kanäle
+    // werden gleich verlangsamt, deshalb bleiben die Richtungen erhalten.
+    // natureFx bleibt bewusst UNANGETASTET – dieses zweite Bett soll normal
+    // weiterlaufen, damit der Raum in der Zeitlupe noch atmet.
+    if (nature2.quelle) nature2.quelle.playbackRate.value = lerp(1, NATUR_MIN_TEMPO, t);
 
-    // Loop-Länge mitziehen: fink.wav hat nach den Rufen eine lange Pause.
-    // Je weiter rechts, desto früher springt der Loop zurück – die Rufe
-    // rücken zusammen und man hört die versteckte Melodie dichter.
-    const dauer = fink.player.buffer.duration;
-    if (dauer > 0) {
-      fink.loop = lerp(dauer, FINK_LOOP_MIN, t);
-      fink.player.loopEnd = fink.loop;
-    }
+    // Die Aufnahme ist 1.9 Sekunden lang, der Ruf steckt aber nur in den ersten
+    // 0.3 Sekunden – danach kommt Stille. Je weiter rechts der Kopf steht, desto
+    // früher springt der Loop zurück: die Rufe rücken zusammen und man hört die
+    // versteckte Melodie dichter.
+    const laenge = fink.spieler.buffer.duration;
+    if (laenge > 0) fink.spieler.loopEnd = lerp(laenge, FINK_LOOP_KURZ, t);
 
-    // Der Vogel schwebt immer FINK_DIST Meter in Blickrichtung.
-    // X wird negiert – Audio- und Visuell-Achse sind gespiegelt (s.o.).
-    const fwdX =  Math.sin(yaw) * Math.cos(pitch);
-    const fwdY =  Math.sin(pitch);
-    const fwdZ = -Math.cos(yaw) * Math.cos(pitch);
-    fink.quelle.setPosition(-FINK_DIST * fwdX, FINK_DIST * fwdY, FINK_DIST * fwdZ);
+    // Der Vogel schwebt immer FINK_ABSTAND Meter in Blickrichtung.
+    // Das x wird negiert – wieder die gespiegelte Achse (siehe oben).
+    fink.quelle.setPosition(
+      -FINK_ABSTAND * blickX,
+       FINK_ABSTAND * blickY,
+       FINK_ABSTAND * blickZ
+    );
   }
 
-  // SZENE 3: der "Lupe"-Scanner über die Instrumente.
-  if (isPlaying && phase === 'musik') {
-    // Blickrichtung in Grad. Das Minus dreht das yaw-Vorzeichen der AirPods
-    // passend zu den Instrument-Winkeln (rechts schauen = Cello/Gitarre).
-    const blickGrad = -yaw * 180 / Math.PI;
+  // ─── 5. SZENE 3: der Blick als Taschenlampe ───
+  // Was im Lichtkegel liegt, fadet ein; alles andere klingt langsam aus.
+  if (audioBereit && phase === 'musik') {
+    for (const instrument of orchester) {
+      // Wieder die Multiplikation zweier Pfeile (siehe Szene 1), diesmal in
+      // alle drei Richtungen – dadurch findet man auch das Klavier über sich.
+      // Das Minus vor blickX ist die gespiegelte Achse: nach rechts schauen
+      // soll Cello und Gitarre treffen.
+      const aehnlichkeit = -blickX * instrument.x + blickY * instrument.y + blickZ * instrument.z;
 
-    for (const inst of orchester) {
-      // Winkel-Abstand zwischen Blick und Instrument, auf -180…180 normiert.
-      let diff = blickGrad - inst.winkel;
-      diff = Math.abs(((diff + 180) % 360 + 360) % 360 - 180);
+      // Math.cos rechnet die Kegelbreite in denselben Vergleichswert um:
+      // beam 25 Grad → alles über cos(25°) = 0.906 liegt im Kegel.
+      const imKegel = aehnlichkeit > Math.cos(instrument.beam * Math.PI / 180);
 
-      // Im "Strahl" der Lupe? → Ziel-Pegel 1, sonst 0.
-      const ziel = diff < SCANNER_BEAM_HALB ? 1 : 0;
+      // Der Pegel wandert zum Ziel – hoch geht schnell, runter langsam.
+      if (imKegel) {
+        instrument.pegel = Math.min(1, instrument.pegel + deltaZeit / ANSCHAU_SEK);
+      } else {
+        instrument.pegel = Math.max(0, instrument.pegel - deltaZeit / AUSKLING_SEK);
+      }
 
-      // Rauf geht schnell (Attack), runter langsam (Decay).
-      const dauer = ziel > inst.pegel ? SCANNER_ATTACK_SEK : SCANNER_DECAY_SEK;
-      const schritt = deltaTime / dauer;
-      if (ziel > inst.pegel) inst.pegel = Math.min(ziel, inst.pegel + schritt);
-      else                   inst.pegel = Math.max(ziel, inst.pegel - schritt);
-
-      // Pegel (0…1) in dB: 1 → 0 dB, 0.5 → -6 dB, ~0 → praktisch stumm.
-      musik[inst.name].vol.volume.value =
-        inst.pegel > 0.001 ? 20 * Math.log10(inst.pegel) : -Infinity;
+      // Pegel (0…1) in Dezibel: 1 → 0 dB, 0.5 → -6 dB, fast 0 → ganz aus.
+      if (instrument.pegel > 0.001) {
+        instrument.lautstaerke.volume.value = 20 * Math.log10(instrument.pegel);
+      } else {
+        instrument.lautstaerke.volume.value = -Infinity;
+      }
     }
   }
 
-  // 4. HUD aktualisieren – kleine Live-Anzeige zum Entwickeln.
-  const aktiveKugel = phase === 'kugel2' ? kugel2 : kugel1;
+  // ─── 6. Die kleine Anzeige oben in der Ecke (nur zum Entwickeln) ───
+  const angezeigteKugel = phase === 'kugel2' ? kugel2 : kugel1;
   document.getElementById('hud').innerHTML =
-    `yaw &nbsp;${yaw.toFixed(2)}<br>` +
+    `yaw &nbsp;&nbsp;${yaw.toFixed(2)}<br>` +
+    `pitch ${pitch.toFixed(2)}<br>` +
     `phase ${phase}<br>` +
-    `HP &nbsp;&nbsp;${headphonesOn ? 'auf' : 'ab'}<br>` +
-    `dist ${aktiveKugel.dist.toFixed(2)} m<br>` +
-    `rate ${fink.rate.toFixed(2)}<br>` +
-    `ctx &nbsp;${audioCtx ? audioCtx.state : '–'}`;
+    `KH &nbsp;&nbsp;&nbsp;${kopfhoererAuf ? 'auf' : 'ab'}<br>` +
+    `dist &nbsp;${angezeigteKugel.dist.toFixed(2)} m<br>` +
+    `tempo ${fink.tempo.toFixed(2)}<br>` +
+    `ctx &nbsp;&nbsp;${audioCtx ? audioCtx.state : '–'}`;
 
-  // 5. Bild zeichnen + nächsten Frame anfordern (die Schleife).
+  // ─── 7. Bild zeichnen und das nächste anfordern – das ist die Schleife ───
   kopf3d.render();
   window.requestAnimationFrame(tick);
 }
 
 
-// ─── START ─────────────────────────────────────────────────────────────────
-// In der Ausstellung läuft Chrome mit dem Flag
-// --autoplay-policy=no-user-gesture-required (siehe start.sh) – dann darf
-// Audio ohne Klick starten. Die Experience selbst wartet danach auf das
-// Aufsetzen der Kopfhörer (onHeadphonesOn).
-// Beim normalen Entwickeln blockiert der Browser das Audio → der
-// Klick/Tastendruck unten ist der Fallback zum Entsperren.
+// ═══════════════════════════════════════════════════════════════════════════
+//  TEIL 9 – KOPFHÖRER AUF UND AB
+//  In der Ausstellung gibt es keinen Startknopf: Die Experience beginnt, wenn
+//  jemand den Kopfhörer aufsetzt, und stellt sich komplett zurück, wenn er
+//  wieder abgelegt wird – bereit für den nächsten Besucher.
+// ═══════════════════════════════════════════════════════════════════════════
 
-function setzeHint(text) {
-  const hint = document.getElementById('hint');
-  hint.textContent = text;
-  hint.classList.remove('hidden');
-}
+let startWartet = false; // jemand hat aufgesetzt, während noch geladen wurde
 
-function starteExperience() {
+function beiKopfhoererAuf() {
+  console.log('Kopfhörer AUFGESETZT');
+
+  if (!audioBereit) {
+    console.warn('Audio lädt noch – die Experience startet automatisch, sobald fertig.');
+    startWartet = true;
+    return;
+  }
+
   if (laeuft) return; // läuft schon – nichts doppelt starten
+
+  // Die aktuelle Kopfhaltung wird zum neuen "geradeaus" –
+  // jeder Besucher setzt den Kopfhörer ja ein bisschen anders auf.
+  setzeNullstellung();
+
   laeuft = true;
   document.getElementById('hint').classList.add('hidden');
   starteTick();
-  // kurze Ruhe, bevor die Stimme beginnt
-  spaeter(() => intro(), 2000);
+  spaeter(intro, 2); // kurz Ruhe, bevor die Stimme beginnt
 }
 
-initAudio()
-  .then(() => starteTick()) // Kopf ist sofort live, Experience wartet auf Kopfhörer
-  .catch(err => console.warn('Auto-Start nicht möglich (kein Autoplay-Flag?) – warte auf Klick/Taste.', err));
+// Der komplette Reset für den nächsten Besucher.
+// Die Reihenfolge ist wichtig: ZUERST laeuft = false setzen, damit wartende
+// Übergänge aus TEIL 7 keine neue Szene mehr starten können – und ERST DANN
+// alles anhalten.
+function beiKopfhoererAb() {
+  console.log('Kopfhörer ABGELEGT – alles zurücksetzen');
+  startWartet = false;
+  if (!laeuft) return;
 
-async function ersterKlick() {
+  laeuft = false;
+  phase = 'warten';
+
+  // Alle noch offenen Timer löschen.
+  for (const id of offeneTimer) clearTimeout(id);
+  offeneTimer = [];
+
+  // Alle Ansagen stoppen. Object.values() gibt alle Werte des Objekts als Liste.
+  // Ein bereits gestoppter Player nimmt stop() klaglos hin.
+  for (const einzelneStimme of Object.values(stimme)) einzelneStimme.stop();
+
+  // Alles Ambisonische kurz ausfaden – auch einen Swoosh,
+  // der gerade noch mitten im Übergang läuft.
+  for (const bett of [nature1, nature2, natureFx, swooshIntro, swooshS2]) {
+    stoppeBett(bett, 0.5);
+  }
+
+  // Die Kugeln: Klang aus, wieder weit weg, unsichtbar.
+  // cancelScheduledValues bricht laufende Lautstärke-Fahrten ab – sonst würde
+  // ein noch laufender Fade unseren Reset-Wert gleich wieder überschreiben.
+  for (const kugel of [kugel1, kugel2]) {
+    for (const regler of kugel.lautstaerken) {
+      regler.volume.cancelScheduledValues(0);
+      regler.volume.value = -Infinity;
+    }
+    for (const spieler of kugel.spieler) spieler.stop();
+
+    kugel.dist  = DIST_FERN;
+    kugel.tempo = 0.8;
+    kugel.quelle.setPosition(kugel.richtung * DIST_FERN, 0, 0);
+    kugel.kugel3d.visible = false;
+  }
+
+  // Der Fink: stoppen und den Geschwindigkeitsregler zurück auf Original.
+  fink.spieler.stop();
+  fink.spieler.playbackRate = 1;
+  fink.lautstaerke.volume.cancelScheduledValues(0);
+  fink.lautstaerke.volume.value = -Infinity;
+  fink.tempo = 1;
+
+  // Der Musik-Raum: Basis und Instrumente stoppen, alle Pegel auf 0.
+  basisSpieler.stop();
+  basisLautstaerke.volume.cancelScheduledValues(0);
+  basisLautstaerke.volume.value = -Infinity;
+  for (const instrument of orchester) {
+    instrument.spieler.stop();
+    instrument.lautstaerke.volume.value = -Infinity;
+    instrument.pegel = 0;
+  }
+
+  // Die Stimme zurück nach vorne für den nächsten Durchlauf.
+  stimmQuelle.setPosition(0, 0, -2);
+
+  const hinweis = document.getElementById('hint');
+  hinweis.textContent = HINWEIS_TEXT;
+  hinweis.classList.remove('hidden');
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  TEIL 10 – HOCHFAHREN UND TASTEN ZUM TESTEN
+// ═══════════════════════════════════════════════════════════════════════════
+
+// In der Ausstellung startet Chrome mit einem besonderen Flag (siehe start.sh),
+// dann darf Audio ohne Klick loslegen. Beim normalen Entwickeln blockiert der
+// Browser das – dann ist der erste Klick oder Tastendruck der Auslöser.
+initAudio()
+  .then(() => starteTick()) // der Kopf ist sofort live, die Experience wartet
+  .catch((fehler) => {
+    console.warn('Automatischer Start nicht möglich – warte auf Klick oder Taste.', fehler);
+  });
+
+async function beimErstenKlick() {
   try {
     await initAudio();
-    if (isPlaying) {
-      window.removeEventListener('click', ersterKlick);
-      window.removeEventListener('keydown', ersterKlick);
+    if (audioBereit) {
+      window.removeEventListener('click', beimErstenKlick);
+      window.removeEventListener('keydown', beimErstenKlick);
       starteTick();
     }
-  } catch (error) {
-    console.error('Fehler beim Audio-Start:', error);
+  } catch (fehler) {
+    console.error('Fehler beim Audio-Start:', fehler);
   }
 }
-window.addEventListener('click', ersterKlick);
-window.addEventListener('keydown', ersterKlick);
+window.addEventListener('click', beimErstenKlick);
+window.addEventListener('keydown', beimErstenKlick);
 
-// DEV-Helfer: mit "?auto" in der URL (http://localhost:3000/?auto) simulieren
-// wir das Aufsetzen direkt nach dem Laden – praktisch ohne AirPods.
+// Tasten zum Testen ohne AirPods:
+//   r = aktuelle Kopfhaltung als "geradeaus" speichern
+//   h = Kopfhörer aufsetzen bzw. ablegen simulieren
+window.addEventListener('keydown', (ereignis) => {
+  if (ereignis.key === 'r') setzeNullstellung();
+
+  if (ereignis.key === 'h') {
+    kopfhoererAuf = !kopfhoererAuf;
+    if (kopfhoererAuf) {
+      // Diese zwei Zeilen sind nötig, falls nebenbei die echte Bridge läuft:
+      // sonst würde der AB_TIMEOUT die Simulation sofort wieder beenden.
+      letzteBewegung = performance.now();
+      vergleichsYaw = yaw;
+      beiKopfhoererAuf();
+    } else {
+      beiKopfhoererAb();
+    }
+  }
+});
+
+// Mit "?auto" in der Adresszeile (http://localhost:3000/?auto) simulieren wir
+// das Aufsetzen direkt nach dem Laden – praktisch zum schnellen Ausprobieren.
 if (new URLSearchParams(location.search).has('auto')) {
   const warteAufAudio = setInterval(() => {
-    if (isPlaying) {
+    if (audioBereit) {
       clearInterval(warteAufAudio);
-      headphonesOn = true;
-      onHeadphonesOn();
+      kopfhoererAuf = true;
+      beiKopfhoererAuf();
     }
   }, 200);
 }
