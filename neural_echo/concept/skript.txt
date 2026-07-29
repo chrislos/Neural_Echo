@@ -1,0 +1,112 @@
+================================================================
+NEURAL ECHO — Skript
+Binaurale Hör-Erfahrung mit Headtracking
+================================================================
+
+
+----------------------------------------------------------------
+INTRO
+----------------------------------------------------------------
+
+SPRECHERIN:
+    Hey, wenn du bereit bist, schließe gerne deine Augen.
+    Kannst du hören, wie sich der Raum um dich herum öffnet?
+
+SOUND:
+    [OneShot]  Ambix Swoosh als Übergang in Szene 1
+
+
+----------------------------------------------------------------
+SZENE 1 — Klänge herbeilocken
+----------------------------------------------------------------
+Konzept: Soundquellen liegen links und rechts vom Hörenden und
+sollen selbstständig via Headtracking erfahren werden.
+
+SOUND:
+    [Loop]     Nature Ambix (Wiese, Insekten) — Fade-in, dann Loop
+
+SPRECHERIN:
+    Hey, hier bin ich. Dreh doch deinen Kopf mal nach links zu mir.
+    Hörst du diesen Sound? Und spürst du, wie er langsam näher kommt?
+
+INTERAKTION:
+    Die Person dreht sich nach links und bleibt eine Weile dort,
+    bis der Sound näher kommt.
+
+SOUND:
+    [Loop]     Erste Klangquelle kommt näher zum Kopf
+               (drei loopende Elemente: Distant + Middle + Near)
+
+SPRECHERIN:
+    Sehr gut. Jetzt dreh dich mal nach rechts.
+    Da hat sich noch ein weiterer Sound versteckt.
+
+INTERAKTION:
+    Das gleiche Spiel noch einmal nach rechts,
+    bis der Sound näher kommt.
+
+SOUND:
+    [Loop]     Zweite Klangquelle kommt näher zum Kopf
+               (drei loopende Elemente: Distant + Middle + Near)
+
+SPRECHERIN:
+    Jetzt bist du ja schon Profi im Klänge herbeilocken.
+    Aber mit deinen neuen Ohren hast du noch eine weitere Fähigkeit.
+
+
+----------------------------------------------------------------
+SZENE 2 — Hausfink / Zeit verlangsamen
+----------------------------------------------------------------
+Konzept: Ein Vogelklang wird durch räumliche Kopfbewegung von
+links nach rechts in der Zeit verlangsamt.
+
+SPRECHERIN:
+    Wusstest du, dass andere Lebewesen Klang in ganz anderen
+    Geschwindigkeiten wahrnehmen können?
+    Nehmen wir zum Beispiel mal den Hausfink. Der kann Details in
+    seinem Gesang fünfmal genauer wahrnehmen als wir Menschen.
+    Hier links hörst du einen kurzen Ausschnitt vom Gesang des
+    Hausfinken.
+    Um dessen Komplexität nun besser wahrnehmen zu können, dreh
+    deinen Kopf langsam nach rechts, um die Zeit zu verlangsamen.
+
+SOUND:
+    [OneShot]  Ambix Swoosh als Übergang
+    [Loop]     Dynamische Ambix-Naturaufnahme, die abhängig von der
+               Kopfbewegung ihre Abspielgeschwindigkeit ändert
+    [Loop]     Dynamisches Fink-Zwitschern (Mono), das abhängig von
+               der Kopfbewegung die Abspielgeschwindigkeit ändert
+
+TIMING: Nach circa 15 Sekunden →
+
+SPRECHERIN (Ende Szene 2):
+    Hör zum Schluss noch mal genauer hin. Merkst du, wie in den
+    zwei Tönen eine ganze Melodie steckt?
+
+
+----------------------------------------------------------------
+SZENE 3 — Musikalischer Raum
+----------------------------------------------------------------
+Konzept: Musikalische Events werden zu einer bestehenden
+Soundscape aktiviert und deaktiviert, je nachdem, wo die
+Hörposition hinschaut.
+
+TIMING: Circa 5 Sekunden nach der Ansprache
+        „… eine ganze Melodie steckt?" →
+
+SPRECHERIN:
+    Deine neuen Ohren sind jetzt ganz schön gut trainiert.
+    Zum Abschluss darfst du noch einen musikalischen Raum erkunden.
+    Dreh weiter deinen Kopf und höre, was für Klänge sich
+    versteckt haben.
+    Wenn du genug gehört hast, darfst du deine Kopfhörer wieder
+    absetzen.
+
+SOUND:
+    [Loop]     String-Ambient-Basis (Fade-in, dann Loop)
+    [Loop]     Dynamisch je Kopfposition:
+                   - Cello
+                   - Gitarre
+                   - Klavier
+                   - Flöte
+                   - Perkussion
