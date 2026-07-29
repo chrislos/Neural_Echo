@@ -3,29 +3,33 @@ NEURAL ECHO — Skript
 Binaurale Hör-Erfahrung mit Headtracking
 ================================================================
 
+Die zugehörige Audiodatei steht in [] hinter dem Blockkopf, die
+Dauer dahinter. Pfade sind relativ zum Ordner, der unter der
+jeweiligen Szenen-Überschrift steht. Datei-Inventar am Ende.
+
 
 ----------------------------------------------------------------
-INTRO
+INTRO                                              static/INTRO/
 ----------------------------------------------------------------
 
-SPRECHERIN:
+SPRECHERIN:  [intro_speech_(mono).wav]                   (10.3 s)
     Hey, wenn du bereit bist, schließe gerne deine Augen.
     Kannst du hören, wie sich der Raum um dich herum öffnet?
 
-SOUND:
+SOUND:  [intro_swoosh_(ambiX).wav]                  (9.0 s, 16ch)
     [OneShot]  Ambix Swoosh als Übergang in Szene 1
 
 
 ----------------------------------------------------------------
-SZENE 1 — Klänge herbeilocken
+SZENE 1 — Klänge herbeilocken                    static/SZENE_1/
 ----------------------------------------------------------------
 Konzept: Soundquellen liegen links und rechts vom Hörenden und
 sollen selbstständig via Headtracking erfahren werden.
 
-SOUND:
+SOUND:  [s1_natureLoop_(ambiX).wav]                (58.7 s, 16ch)
     [Loop]     Nature Ambix (Wiese, Insekten) — Fade-in, dann Loop
 
-SPRECHERIN:
+SPRECHERIN:  [s1_speech1_(mono).wav]                     (11.4 s)
     Hey, hier bin ich. Dreh doch deinen Kopf mal nach links zu mir.
     Hörst du diesen Sound? Und spürst du, wie er langsam näher kommt?
 
@@ -33,11 +37,13 @@ INTERAKTION:
     Die Person dreht sich nach links und bleibt eine Weile dort,
     bis der Sound näher kommt.
 
-SOUND:
+SOUND:  [s1_ineractiveSound1_distantLoop_(mono).wav]      (4.0 s)
+        [s1_ineractiveSound1_middleLoop_(mono).wav]       (4.0 s)
+        [s1_ineractiveSound1_nearLoop_(mono).wav]         (4.0 s)
     [Loop]     Erste Klangquelle kommt näher zum Kopf
                (drei loopende Elemente: Distant + Middle + Near)
 
-SPRECHERIN:
+SPRECHERIN:  [s1_speech2_(mono).wav]                      (6.0 s)
     Sehr gut. Jetzt dreh dich mal nach rechts.
     Da hat sich noch ein weiterer Sound versteckt.
 
@@ -45,22 +51,24 @@ INTERAKTION:
     Das gleiche Spiel noch einmal nach rechts,
     bis der Sound näher kommt.
 
-SOUND:
+SOUND:  [s1_ineractiveSound2_distantLoop_(mono).wav]     (40.0 s)
+        [s1_ineractiveSound2_middleLoop_(mono).wav]      (40.0 s)
+        [s1_ineractiveSound2_nearLoop_(mono).wav]        (40.0 s)
     [Loop]     Zweite Klangquelle kommt näher zum Kopf
                (drei loopende Elemente: Distant + Middle + Near)
 
-SPRECHERIN:
+SPRECHERIN:  [s1_speech3_(mono).wav]                      (7.6 s)
     Jetzt bist du ja schon Profi im Klänge herbeilocken.
     Aber mit deinen neuen Ohren hast du noch eine weitere Fähigkeit.
 
 
 ----------------------------------------------------------------
-SZENE 2 — Hausfink / Zeit verlangsamen
+SZENE 2 — Hausfink / Zeit verlangsamen           static/SZENE_2/
 ----------------------------------------------------------------
 Konzept: Ein Vogelklang wird durch räumliche Kopfbewegung von
 links nach rechts in der Zeit verlangsamt.
 
-SPRECHERIN:
+SPRECHERIN:  [s2_speech1_(mono).wav]                      (9.3 s)
     Wusstest du, dass andere Lebewesen Klang in ganz anderen
     Geschwindigkeiten wahrnehmen können?
     Nehmen wir zum Beispiel mal den Hausfink. Der kann Details in
@@ -70,22 +78,31 @@ SPRECHERIN:
     Um dessen Komplexität nun besser wahrnehmen zu können, dreh
     deinen Kopf langsam nach rechts, um die Zeit zu verlangsamen.
 
-SOUND:
+SOUND:  [s2_swoosh_(ambiX).wav]                     (8.0 s, 16ch)
     [OneShot]  Ambix Swoosh als Übergang
+
+SOUND:  [s2_natureLoop_(ambiX).wav]                (58.7 s, 16ch)
     [Loop]     Dynamische Ambix-Naturaufnahme, die abhängig von der
                Kopfbewegung ihre Abspielgeschwindigkeit ändert
+
+SOUND:  [s2_fink_(mono).wav]                              (1.9 s)
     [Loop]     Dynamisches Fink-Zwitschern (Mono), das abhängig von
                der Kopfbewegung die Abspielgeschwindigkeit ändert
 
+SOUND:  [s2_lowNatureFxLoop_(ambiX).wav]           (39.9 s, 16ch)
+    [Loop]     Nicht dynamischer Ambience-Loop, der leise im
+               Hintergrund zusätzlich zum Nature-Loop läuft und
+               etwas FX-Atmosphäre erzeugt
+
 TIMING: Nach circa 15 Sekunden →
 
-SPRECHERIN (Ende Szene 2):
+SPRECHERIN (Ende Szene 2):  [s2_speech2_(mono).wav]       (9.3 s)
     Hör zum Schluss noch mal genauer hin. Merkst du, wie in den
     zwei Tönen eine ganze Melodie steckt?
 
 
 ----------------------------------------------------------------
-SZENE 3 — Musikalischer Raum
+SZENE 3 — Musikalischer Raum                     static/SZENE_3/
 ----------------------------------------------------------------
 Konzept: Musikalische Events werden zu einer bestehenden
 Soundscape aktiviert und deaktiviert, je nachdem, wo die
@@ -94,7 +111,7 @@ Hörposition hinschaut.
 TIMING: Circa 5 Sekunden nach der Ansprache
         „… eine ganze Melodie steckt?" →
 
-SPRECHERIN:
+SPRECHERIN:  [s3_speech1_(mono).wav]                     (12.7 s)
     Deine neuen Ohren sind jetzt ganz schön gut trainiert.
     Zum Abschluss darfst du noch einen musikalischen Raum erkunden.
     Dreh weiter deinen Kopf und höre, was für Klänge sich
@@ -102,11 +119,70 @@ SPRECHERIN:
     Wenn du genug gehört hast, darfst du deine Kopfhörer wieder
     absetzen.
 
-SOUND:
+SOUND:  [s3_musik_basis.wav]                            (106.0 s)
     [Loop]     String-Ambient-Basis (Fade-in, dann Loop)
+
+SOUND:  [s3_musik_cello.wav]                            (114.0 s)
+        [s3_musik_gitarre.wav]                          (106.0 s)
+        [s3_musik_klavier.wav]                          (106.0 s)
+        [s3_musik_floete.wav]                           (106.0 s)
+        [s3_musik_perkussion.wav]                       (107.3 s)
     [Loop]     Dynamisch je Kopfposition:
-                   - Cello
-                   - Gitarre
-                   - Klavier
-                   - Flöte
-                   - Perkussion
+                   - Cello       180 Grad rechts
+                   - Gitarre      90 Grad rechts
+                   - Klavier       0 Grad, über dem Kopf platziert
+                   - Flöte        90 Grad links
+                   - Perkussion  180 Grad links
+
+
+================================================================
+DATEI-INVENTAR static/ (Stand 29.07.2026)
+================================================================
+Alle Dateien 48 kHz. „(ambiX)" = 16 Kanäle (Ambisonics),
+„(mono)" = 1 Kanal.
+
+INTRO/
+    intro_speech_(mono).wav                       10.3 s
+    intro_swoosh_(ambiX).wav                       9.0 s   16ch
+
+SZENE_1/
+    s1_natureLoop_(ambiX).wav                     58.7 s   16ch
+    s1_speech1_(mono).wav                         11.4 s
+    s1_speech2_(mono).wav                          6.0 s
+    s1_speech3_(mono).wav                          7.6 s
+    s1_ineractiveSound1_distantLoop_(mono).wav     4.0 s
+    s1_ineractiveSound1_middleLoop_(mono).wav      4.0 s
+    s1_ineractiveSound1_nearLoop_(mono).wav        4.0 s
+    s1_ineractiveSound2_distantLoop_(mono).wav    40.0 s
+    s1_ineractiveSound2_middleLoop_(mono).wav     40.0 s
+    s1_ineractiveSound2_nearLoop_(mono).wav       40.0 s
+
+SZENE_2/
+    s2_swoosh_(ambiX).wav                          8.0 s   16ch
+    s2_natureLoop_(ambiX).wav                     58.7 s   16ch
+    s2_lowNatureFxLoop_(ambiX).wav                39.9 s   16ch
+    s2_fink_(mono).wav                             1.9 s
+    s2_speech1_(mono).wav                          9.3 s
+    s2_speech2_(mono).wav                          9.3 s
+
+SZENE_3/
+    s3_speech1_(mono).wav                         12.7 s
+    s3_musik_basis.wav                           106.0 s
+    s3_musik_cello.wav                           114.0 s
+    s3_musik_gitarre.wav                         106.0 s
+    s3_musik_klavier.wav                         106.0 s
+    s3_musik_floete.wav                          106.0 s
+    s3_musik_perkussion.wav                      107.3 s
+
+ANMERKUNGEN
+    - Kein Outro vorhanden; das alte voice_outro.wav liegt noch in
+      static/_old/.
+    - Szene 2 hat zwei Ambix-Betten übereinander: s2_natureLoop
+      (dynamisch, folgt der Kopfbewegung) und s2_lowNatureFxLoop
+      (statisch, leise darunter).
+    - Szene 1: die beiden Klangquellen sind unterschiedlich lang
+      (Sound1 = 4 s Loops, Sound2 = 40 s Loops).
+    - Tippfehler in den Dateinamen absichtlich so belassen, wie
+      geliefert: „ineractiveSound" (statt interactive).
+    - Klammern in den Dateinamen müssen im Code URL-kodiert werden
+      (( → %28, ) → %29).
