@@ -370,12 +370,15 @@ window.addEventListener('click', async () => {
       depth: 10 
     },
     {
-      left: 'brick-bare', 
-      right: 'brick-bare',
-      front: 'brick-bare', 
-      back: 'brick-bare',
-      down: 'parquet-on-concrete', 
-      up: 'wood-ceiling'
+      // absorbierende Materialien statt 'brick-bare' = deutlich weniger Hall.
+      // 'curtain-heavy' schluckt viel, 'acoustic-ceiling-tiles' macht die Decke
+      // praktisch schalltot. So bleibt der Klang auch nah an der Quelle trocken.
+      left: 'curtain-heavy',
+      right: 'curtain-heavy',
+      front: 'curtain-heavy',
+      back: 'curtain-heavy',
+      down: 'parquet-on-concrete',
+      up: 'acoustic-ceiling-tiles'
     }
   );
 
@@ -391,11 +394,14 @@ window.addEventListener('click', async () => {
   // decay (Abfall), sustain (Halten), release (Ausschwingen).
   // .connect(resonanceSource.input) leitet den Ton durch Resonance Audio.
   synth = new Tone.Synth({
+    // volume ist in Dezibel (dB). 0 = voller Pegel, negative Werte = leiser.
+    // -8 dB nimmt die Lautstärke spürbar zurück, ohne sie zu stark zu drücken.
+    volume: -8,
     oscillator: { type: 'sine' },
-    envelope: { 
-      attack: 0.005, 
-      decay: 0.5, 
-      sustain: 0, 
+    envelope: {
+      attack: 0.005,
+      decay: 0.5,
+      sustain: 0,
       release: 0.2 }
   }).connect(resonanceSource.input);
 
@@ -499,22 +505,22 @@ const tick = () => {
   srcMesh.position.set(-sourceDist, 0, 0);
 
 
-  /*
+
   // 7. PING-RING animieren
   // dtPing = Sekunden seit dem letzten Ping. Über 1.5 Sekunden blendet der Ring
   // komplett aus. progress (0→1) steuert gleichzeitig Scale und Opacity.
-  const dtPing = elapsedTime - lastPingTime;
-  if (dtPing < 1.5 && isPlaying) {
-    const progress = dtPing / 1.5;
-    const scale    = sourceDist * 0.6 * progress;
-    pingMesh.position.set(sourceDist, 0, 0);
-    pingMesh.scale.setScalar(scale);
-    pingMesh.material.opacity = 1 - progress;
-  } else {
-    pingMesh.scale.setScalar(0);
-    pingMesh.material.opacity = 0;
-  }
-    */
+  // const dtPing = elapsedTime - lastPingTime;
+  // if (dtPing < 1.5 && isPlaying) {
+  //   const progress = dtPing / 1.5;
+  //   const scale    = sourceDist * 0.6 * progress;
+  //   pingMesh.position.set(sourceDist, 0, 0);
+  //   pingMesh.scale.setScalar(scale);
+  //   pingMesh.material.opacity = 1 - progress;
+  // } else {
+  //   pingMesh.scale.setScalar(0);
+  //   pingMesh.material.opacity = 0;
+  // }
+
 
 
   // 8. HUD aktualisieren

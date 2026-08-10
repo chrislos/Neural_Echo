@@ -62,9 +62,11 @@ When adding to a scene, add it inline – do not extract a helper "for tidiness"
 ```
 src/3dhead.js  – all visuals (Three.js wireframe head, red source balls,
                  renderer). Returns { setzeKopfDrehung, macheKugel, render }.
-static/        – all audio, one folder per scene (INTRO, SZENE_1…3); Vite
-                 serves it at '/' (publicDir), so the folder is part of the
-                 URL. Parentheses in the filenames need no encoding.
+static/        – all audio, FLAT (no scene subfolders) so a re-recorded file
+                 can simply be copied over the old one. The scene is encoded
+                 in the filename prefix: intro_, s1_, s2_, s3_. Vite serves
+                 the folder at '/' (publicDir), so a path is just
+                 '/s1_speech1_(mono).wav'. Parentheses need no encoding.
                  `static/_old/` is the retired prototype set – ignore it.
 ```
 

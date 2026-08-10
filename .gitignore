@@ -6,3 +6,9 @@ headtracker_bridge/public/node_modules
 **/.DS_Store
 Sonar/node_modules
 *.asd
+Sonar_Class/node_modules
+Sonar_Levels_Adv/dist
+Sonar_Levels_szene_02_finch/dist
+Sonar_Levels_szene_02_finch/node_modules
+Sonar_Levels_szene_03_music/dist
+Sonar_Levels_szene_03_music/node_modules

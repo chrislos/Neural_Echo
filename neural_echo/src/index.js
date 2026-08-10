@@ -51,8 +51,12 @@ import { erstelleKopfSzene } from './3dhead.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  TEIL 1 – DIE AUDIO-DATEIEN
-//  Alle Aufnahmen liegen in static/ und werden vom Server unter '/' angeboten:
-//  aus static/INTRO/intro_speech_(mono).wav wird '/INTRO/intro_speech_(mono).wav'.
+//  Alle Aufnahmen liegen flach in static/ – ein Ordner, keine Unterordner.
+//  Der Server bietet diesen Ordner unter '/' an: aus
+//  static/intro_speech_(mono).wav wird '/intro_speech_(mono).wav'.
+//  Das Präfix im Dateinamen (intro_, s1_, s2_, s3_) sagt, zu welcher Szene
+//  eine Aufnahme gehört. So kann man eine neue Sprachdatei einfach über die
+//  alte kopieren, ohne im Code etwas zu ändern.
 //
 //  Die Namen stehen hier gesammelt an EINER Stelle. Wird eine Aufnahme neu
 //  geschnitten, ändert man nur diese Liste – der restliche Code bleibt gleich.
@@ -62,43 +66,43 @@ import { erstelleKopfSzene } from './3dhead.js';
 // ═══════════════════════════════════════════════════════════════════════════
 
 const DATEIEN = {
-  introStimme: '/INTRO/intro_speech_(mono).wav',
-  introSwoosh: '/INTRO/intro_swoosh_(ambiX).wav',
+  introStimme: '/intro_speech_(mono).wav',
+  introSwoosh: '/intro_swoosh_(ambiX).wav',
 
-  s1Natur:   '/SZENE_1/s1_natureLoop_(ambiX).wav',
-  s1Stimme1: '/SZENE_1/s1_speech1_(mono).wav', // "…dreh deinen Kopf nach links"
-  s1Stimme2: '/SZENE_1/s1_speech2_(mono).wav', // "…jetzt nach rechts"
+  s1Natur:   '/s1_natureLoop_(ambiX).wav',
+  s1Stimme1: '/s1_speech1_(mono).wav', // "…dreh deinen Kopf nach links"
+  s1Stimme2: '/s1_speech2_(mono).wav', // "…jetzt nach rechts"
   // s1_speech3 ("Jetzt bist du ja schon Profi…") gibt es nicht mehr als eigene
   // Datei – der Satz steckt jetzt vorne in s2_speech1. Die alte Datei liegt
-  // noch in static/SZENE_1/, wird aber nirgends mehr geladen.
+  // noch in static/, wird aber nirgends mehr geladen.
 
   // Jede Klangkugel besteht aus drei Loops, die beim Näherkommen nacheinander
   // dazukommen: erst nur "fern", dann "mittel", ganz nah dann auch "nah".
   s1Kugel1: [
-    '/SZENE_1/s1_ineractiveSound1_distantLoop_(mono).wav',
-    '/SZENE_1/s1_ineractiveSound1_middleLoop_(mono).wav',
-    '/SZENE_1/s1_ineractiveSound1_nearLoop_(mono).wav',
+    '/s1_ineractiveSound1_distantLoop_(mono).wav',
+    '/s1_ineractiveSound1_middleLoop_(mono).wav',
+    '/s1_ineractiveSound1_nearLoop_(mono).wav',
   ],
   s1Kugel2: [
-    '/SZENE_1/s1_ineractiveSound2_distantLoop_(mono).wav',
-    '/SZENE_1/s1_ineractiveSound2_middleLoop_(mono).wav',
-    '/SZENE_1/s1_ineractiveSound2_nearLoop_(mono).wav',
+    '/s1_ineractiveSound2_distantLoop_(mono).wav',
+    '/s1_ineractiveSound2_middleLoop_(mono).wav',
+    '/s1_ineractiveSound2_nearLoop_(mono).wav',
   ],
 
-  s2Swoosh:  '/SZENE_2/s2_swoosh_(ambiX).wav',
-  s2Natur:   '/SZENE_2/s2_natureLoop_(ambiX).wav',      // wird mit-verlangsamt
-  s2NaturFx: '/SZENE_2/s2_lowNatureFxLoop_(ambiX).wav', // bleibt normal schnell
-  s2Fink:    '/SZENE_2/s2_fink_(mono).wav',
-  s2Stimme1: '/SZENE_2/s2_speech1_(mono).wav', // "Wusstest du, dass…"
-  s2Stimme2: '/SZENE_2/s2_speech2_(mono).wav', // "Hör zum Schluss noch mal…"
+  s2Swoosh:  '/s2_swoosh_(ambiX).wav',
+  s2Natur:   '/s2_natureLoop_(ambiX).wav',      // wird mit-verlangsamt
+  s2NaturFx: '/s2_lowNatureFxLoop_(ambiX).wav', // bleibt normal schnell
+  s2Fink:    '/s2_fink_(mono).wav',
+  s2Stimme1: '/s2_speech1_(mono).wav', // "Wusstest du, dass…"
+  s2Stimme2: '/s2_speech2_(mono).wav', // "Hör zum Schluss noch mal…"
 
-  s3Stimme1:    '/SZENE_3/s3_speech1_(mono).wav',
-  s3Basis:      '/SZENE_3/s3_musik_basis.wav',
-  s3Cello:      '/SZENE_3/s3_musik_cello.wav',
-  s3Gitarre:    '/SZENE_3/s3_musik_gitarre.wav',
-  s3Klavier:    '/SZENE_3/s3_musik_klavier.wav',
-  s3Floete:     '/SZENE_3/s3_musik_floete.wav',
-  s3Perkussion: '/SZENE_3/s3_musik_perkussion.wav',
+  s3Stimme1:    '/s3_speech1_(mono).wav',
+  s3Basis:      '/s3_musik_basis.wav',
+  s3Cello:      '/s3_musik_cello.wav',
+  s3Gitarre:    '/s3_musik_gitarre.wav',
+  s3Klavier:    '/s3_musik_klavier.wav',
+  s3Floete:     '/s3_musik_floete.wav',
+  s3Perkussion: '/s3_musik_perkussion.wav',
 };
 
 
@@ -128,6 +132,13 @@ const NATUR_MIN_TEMPO = 0.1;  // das Natur-Bett wird noch etwas stärker gebrems
 const FINK_ABSTAND    = 2;    // Meter: so weit vor den Augen schwebt der Vogel
 const FINK_LOOP_KURZ  = 0.4;  // Sekunden: kürzeste Loop-Länge (siehe TEIL 8)
 
+// Der kurze Vorgeschmack mitten in der Ansage. Die Sekunde bezieht sich auf
+// den Start von s2_speech1: Dort sagt die Sprecherin "Hier links hörst du
+// einen kurzen Ausschnitt vom Gesang des Hausfinken" – und genau in der
+// Sprechpause danach zwitschert er einmal.
+const FINK_VORSCHAU_SEK      = 27; // Sekunde in s2_speech1
+const FINK_VORSCHAU_ABSTAND  = 2;  // Meter links vom Hörer
+
 // ─── Szene 3: der musikalische Raum ───
 // Jedes Instrument hängt in einer Richtung im Raum. Zwei Winkel beschreiben sie:
 //    azimut = links/rechts   (0 = geradeaus, + = rechts, − = links)
@@ -150,15 +161,39 @@ const ORCH_ABSTAND = 6;   // Meter: so weit weg stehen die Instrumente
 const ANSCHAU_SEK  = 2.5; // Sekunden: so schnell fadet ein Instrument ein
 const AUSKLING_SEK = 5;   // Sekunden: so langsam klingt es wieder aus
 
+// ─── Wie weit weg spricht die Stimme? ───
+// Je größer die Zahl, desto weiter steht die Sprecherin vor dir – und desto
+// weniger klebt sie am Kopf. Der Raum ist trocken (kein Hall), deshalb macht
+// sich der Abstand vor allem als "sie steht im Raum" statt "sie flüstert mir
+// ins Ohr" bemerkbar. In Szene 1 wandert die Stimme nach links bzw. rechts,
+// damit sie aus genau der Richtung kommt, in die man schauen soll – die zwei
+// Richtungen haben deshalb ihren eigenen Abstand.
+const STIMME_ABSTAND        = 3.5; // Meter: Ansagen von vorne (Intro, Szene 2)
+const STIMME_ABSTAND_LINKS  = 3.5; // Meter: "Hey, hier bin ich" von links
+const STIMME_ABSTAND_RECHTS = 4;   // Meter: "Sehr gut…" von rechts
+
 // ─── Wie lange dauern die Übergänge? (siehe concept/skript.txt) ───
-const INTRO_SWOOSH_NACH_SEK = 8.5; // Swoosh kommt mitten in die Intro-Stimme
-const S2_SWOOSH_NACH_SEK    = 7.4; // dito in Szene 2: die Ansage beginnt noch in
-                                   // Szene 1, der Raum wechselt erst in der
-                                   // Sprechpause vor "Wusstest du, dass…"
-const PAUSE_VOR_LINKS_SEK   = 3;   // Ruhe, bevor die Stimme von links spricht
+const INTRO_SWOOSH_NACH_SEK = 6;   // Swoosh kommt mitten in die Intro-Stimme.
+                                   // Gemessen ab dem ersten Wort, nicht ab
+                                   // der Uhr in der Anzeige – die läuft schon
+                                   // 2 Sekunden früher los (siehe TEIL 9).
+const S2_SWOOSH_NACH_SEK    = 36.5; // In Szene 2 wechselt der Raum ERST, wenn
+                                    // die ganze Ansage gesprochen ist. Sie ist
+                                    // ja selbst die Überleitung: Sie beginnt
+                                    // noch in Szene 1 ("Jetzt bist du ja schon
+                                    // Profi…") und endet mit "…dreh deinen Kopf
+                                    // langsam nach rechts". Der Swoosh setzt in
+                                    // der Schlusspause ein (ab 36,5 s), kurz
+                                    // bevor der Fink zu hören ist.
+const PAUSE_VOR_LINKS_SEK   = 9.8; // Ruhe, bevor die Stimme von links spricht.
+                                   // So lang, weil der Intro-Swoosh 9 Sekunden
+                                   // dauert: erst wenn der ganz durch ist, sagt
+                                   // sie "Hey, hier bin ich" (Uhr ca. 19 s).
 const PAUSE_VOR_STIMME_SEK  = 1.5; // Ruhe vor den übrigen Ansagen
-const FINK_SPIELZEIT_SEK    = 15;  // freies Ausprobieren, dann kommt die Ansage
-const FINK_ENDE_PAUSE_SEK   = 5;   // Pause nach "…eine ganze Melodie steckt?"
+const FINK_SPIELZEIT_SEK    = 25;  // freies Ausprobieren, dann kommt die Ansage
+const FINK_ENDE_PAUSE_SEK   = 15;  // Pause nach "…eine ganze Melodie steckt?" –
+                                   // lang genug, um die Melodie im Fink wirklich
+                                   // zu suchen, bevor Szene 3 übernimmt
 const SZENE3_FADE_SEK       = 5;   // Überblendung von Szene 2 nach Szene 3
 // Ein Outro gibt es nicht mehr: "Wenn du genug gehört hast, darfst du deine
 // Kopfhörer wieder absetzen" ist schon das Ende von s3_speech1.
@@ -169,6 +204,14 @@ const SZENE3_FADE_SEK       = 5;   // Überblendung von Szene 2 nach Szene 3
 // also nur: "Wann gab es zuletzt eine echte Bewegung?"
 const BEWEGUNGS_SCHWELLE = 0.000000015; // ab so viel Änderung zählt es als Bewegung
 const AB_TIMEOUT_MS      = 5000;        // so lange still = Kopfhörer liegt ab
+
+// ─── Der Moment zwischen Aufsetzen und Intro ───
+// Erkannt wird das Aufsetzen an der ersten Bewegung – da sitzt der Kopfhörer
+// aber meist noch gar nicht richtig. Deshalb bleibt es erst einmal still:
+// die Person rückt den Kopfhörer zurecht und schaut nach vorne, und ERST DANN
+// wird gemessen, wo "geradeaus" ist (siehe beiKopfhoererAuf in TEIL 9).
+const START_VERZOEGERUNG_SEK = 4; // Ruhe nach dem Aufsetzen, bevor das Intro beginnt
+const KALIBRIER_FENSTER_SEK  = 2; // über so viele Sekunden wird die Nullstellung gemittelt
 
 const HINWEIS_TEXT = 'setz die Kopfhörer auf … · h = simulieren · r = reset';
 
@@ -202,6 +245,11 @@ let phase = 'laden';
 // Wichtig beim Zurücksetzen: siehe stelleAllesZurueck() in TEIL 9.
 let laeuft = false;
 
+// Wann wurde der Kopfhörer aufgesetzt? Daraus rechnet die Anzeige in TEIL 8
+// die laufende Zeit aus – so kann man beim Testen genau sagen, bei welcher
+// Sekunde etwas zu früh oder zu spät kommt. 0 heißt: läuft gerade nicht.
+let startZeit = 0;
+
 // Die Kopfwinkel in Radiant (yaw = links/rechts, pitch = nicken, roll = kippen).
 let yaw = 0, pitch = 0, roll = 0;
 
@@ -230,6 +278,13 @@ const kugel2 = { richtung:  1, dist: DIST_FERN, nahDist: DIST_NAH, pegel: 0, tem
 
 // Der Fink aus Szene 2.
 const fink = { spieler: null, lautstaerke: null, quelle: null, tempo: 1 };
+
+// Derselbe Ruf, aber schon MITTEN in der Ansage einmal von links: "Hier links
+// hörst du einen kurzen Ausschnitt vom Gesang des Hausfinken."
+// Warum ein zweiter Abspieler und nicht einfach der von oben? Der Fink oben
+// wird vom Kopf verlangsamt und läuft als Endlos-Loop. Dieser hier soll genau
+// einmal und immer im Originaltempo kommen – zwei Aufgaben, zwei Abspieler.
+const finkVorschau = { spieler: null, quelle: null };
 
 // Die Klangfläche, über der in Szene 3 die Instrumente liegen.
 let basisSpieler     = null;
@@ -386,6 +441,11 @@ let rohYaw = 0, rohPitch = 0, rohRoll = 0;
 let nullYaw = 0, nullPitch = 0, nullRoll = 0;
 let schonKalibriert = false;
 
+// Die Messungen der letzten KALIBRIER_FENSTER_SEK Sekunden. Diese Liste wandert
+// mit der Zeit mit: vorne kommt jede neue Messung dazu, hinten fallen die zu
+// alten heraus. Daraus mittelt setzeNullstellung() die Kopfhaltung.
+const verlauf = [];
+
 // Für die Kopfhörer-Erkennung (Einstellungen dazu stehen in TEIL 2).
 let kopfhoererAuf  = false;
 let vergleichsYaw  = 0; // der zuletzt gemerkte Bewegungspunkt
@@ -398,6 +458,16 @@ ws.onmessage = (nachricht) => {
   rohPitch = daten.pitch;
   rohRoll  = daten.roll;
 
+  const jetzt = performance.now();
+
+  // Die Messung ans Ende des Verlaufs hängen und vorne alles wegwerfen, was
+  // älter ist als das Fenster. So stehen dort immer genau die letzten
+  // KALIBRIER_FENSTER_SEK Sekunden – egal wie schnell die Bridge sendet.
+  verlauf.push({ zeit: jetzt, yaw: rohYaw, pitch: rohPitch, roll: rohRoll });
+  while (verlauf.length > 0 && jetzt - verlauf[0].zeit > KALIBRIER_FENSTER_SEK * 1000) {
+    verlauf.shift();
+  }
+
   // Die allererste Messung wird zur Nullstellung.
   if (!schonKalibriert) {
     setzeNullstellung();
@@ -407,8 +477,6 @@ ws.onmessage = (nachricht) => {
   yaw   = rohYaw   - nullYaw;
   pitch = rohPitch - nullPitch;
   roll  = rohRoll  - nullRoll;
-
-  const jetzt = performance.now();
 
   // Hat sich der Kopf seit dem letzten gemerkten Punkt deutlich bewegt?
   // Wir vergleichen bewusst NICHT mit der letzten Messung, sondern mit dem
@@ -432,11 +500,48 @@ ws.onmessage = (nachricht) => {
   }
 };
 
-// Die aktuelle Kopfhaltung wird als neues "geradeaus" gespeichert.
+// Die Kopfhaltung der letzten Sekunden wird als neues "geradeaus" gespeichert.
+//
+// Warum ein Mittelwert und nicht einfach die letzte Messung? Wer gerade den
+// Kopfhörer aufgesetzt hat, hält den Kopf noch nicht ruhig. Trifft man genau
+// so ein Zucken, ist "geradeaus" für den Rest der Experience schief. Über
+// zwei Sekunden gemittelt fallen solche Ausreißer kaum ins Gewicht.
+//
+// ACHTUNG bei Winkeln: Einfach zusammenzählen und teilen geht hier NICHT.
+// Der Wert springt bei einer halben Drehung von +3.14 auf -3.14, und der
+// Mittelwert wäre 0 – also ausgerechnet die Gegenrichtung. Deshalb machen wir
+// aus jedem Winkel erst einen Punkt auf einem Kreis (mit sin und cos), mitteln
+// diese Punkte, und rechnen mit atan2 den mittleren Winkel wieder zurück.
 function setzeNullstellung() {
-  nullYaw   = rohYaw;
-  nullPitch = rohPitch;
-  nullRoll  = rohRoll;
+  // Noch keine Messung da (z.B. Bridge nicht verbunden)? Dann bleibt es beim
+  // aktuellen Wert – ohne diese Zeile käme unten atan2(0, 0) heraus.
+  if (verlauf.length === 0) {
+    nullYaw   = rohYaw;
+    nullPitch = rohPitch;
+    nullRoll  = rohRoll;
+    return;
+  }
+
+  let sinYaw = 0, cosYaw = 0;
+  let sinPitch = 0, cosPitch = 0;
+  let sinRoll = 0, cosRoll = 0;
+
+  for (const messung of verlauf) {
+    sinYaw   += Math.sin(messung.yaw);
+    cosYaw   += Math.cos(messung.yaw);
+    sinPitch += Math.sin(messung.pitch);
+    cosPitch += Math.cos(messung.pitch);
+    sinRoll  += Math.sin(messung.roll);
+    cosRoll  += Math.cos(messung.roll);
+  }
+
+  // atan2 braucht die Summen nicht durch die Anzahl geteilt –
+  // die Richtung des Punktes ändert sich dadurch ja nicht.
+  nullYaw   = Math.atan2(sinYaw, cosYaw);
+  nullPitch = Math.atan2(sinPitch, cosPitch);
+  nullRoll  = Math.atan2(sinRoll, cosRoll);
+
+  console.log(`Nullstellung gemittelt aus ${verlauf.length} Messungen`);
 }
 
 
@@ -496,10 +601,11 @@ async function initAudio() {
 
   // ─── Die Stimmen ───
   // Alle Ansagen laufen durch EINE Quelle im Raum. Die steht normalerweise
-  // 2 Meter vor dem Hörer – in Szene 1 wandert sie nach links bzw. rechts,
-  // damit die Stimme aus genau der Richtung kommt, in die man schauen soll.
+  // STIMME_ABSTAND Meter vor dem Hörer – in Szene 1 wandert sie nach links
+  // bzw. rechts, damit die Stimme aus genau der Richtung kommt, in die man
+  // schauen soll.
   stimmQuelle = resonanceScene.createSource();
-  stimmQuelle.setPosition(0, 0, -2);
+  stimmQuelle.setPosition(0, 0, -STIMME_ABSTAND);
 
   stimme.intro    = new Tone.Player(DATEIEN.introStimme).connect(stimmQuelle.input);
   stimme.s1Links  = new Tone.Player(DATEIEN.s1Stimme1).connect(stimmQuelle.input);
@@ -508,9 +614,11 @@ async function initAudio() {
   stimme.s2Ende   = new Tone.Player(DATEIEN.s2Stimme2).connect(stimmQuelle.input);
   stimme.s3       = new Tone.Player(DATEIEN.s3Stimme1).connect(stimmQuelle.input);
 
-  // Die Ansage von links kam bisher zu präsent (sie steht ja auch näher am Ohr
-  // als die anderen). Deshalb hier 3 dB unter den Rest.
-  stimme.s1Links.volume.value = -3;
+  // Die Ansage von links stand früher näher am Ohr als die anderen und war
+  // deshalb 3 dB abgesenkt. Seit alle Ansagen STIMME_ABSTAND Meter entfernt
+  // sind, gilt das nicht mehr – jetzt darf sie sogar etwas drüber liegen,
+  // weil sie von der Seite kommt und dort weniger präsent wirkt.
+  stimme.s1Links.volume.value = 1;
 
   // ─── Die fünf Ambisonics-Dateien ───
   // Bewusst NACHEINANDER (jedes await wartet auf das vorherige): zusammen sind
@@ -549,6 +657,15 @@ async function initAudio() {
   fink.spieler     = new Tone.Player({ url: DATEIEN.s2Fink, loop: true });
   fink.spieler.connect(fink.lautstaerke);
   fink.lautstaerke.connect(fink.quelle.input);
+
+  // Der Vorgeschmack mitten in der Ansage: dieselbe Aufnahme, aber OHNE Loop
+  // und an einer festen Stelle links. Die bleibt den ganzen Abschnitt über
+  // stehen – der Ruf soll ja wirklich von links kommen und nicht dorthin
+  // wandern, wo man gerade hinschaut.
+  finkVorschau.quelle  = resonanceScene.createSource();
+  finkVorschau.quelle.setPosition(-FINK_VORSCHAU_ABSTAND, 0, 0);
+  finkVorschau.spieler = new Tone.Player({ url: DATEIEN.s2Fink, loop: false });
+  finkVorschau.spieler.connect(finkVorschau.quelle.input);
 
   // ─── Der Musik-Raum ───
   // Die Basis-Fläche läuft OHNE Resonance direkt auf den Ausgang: Sie soll den
@@ -629,7 +746,7 @@ async function initAudio() {
 function intro() {
   console.log('INTRO');
   phase = 'intro';
-  stimmQuelle.setPosition(0, 0, -2); // Stimme kommt von vorne
+  stimmQuelle.setPosition(0, 0, -STIMME_ABSTAND); // Stimme kommt von vorne
   stimme.intro.start();
 
   // Mitten in der Ansage öffnet der Swoosh den Raum und die Wiese fadet ein.
@@ -650,11 +767,9 @@ function szene1Links() {
   console.log('SZENE 1 – Kugel links');
   phase = 'intro'; // solange die Stimme spricht, gibt es nichts zu tun
 
-  // Stimme kommt von LINKS – und zwar weiter weg als in den anderen Szenen.
-  // Direkt neben dem Ohr drückt sie zu sehr; aus 3.5 Metern bleibt die Richtung
-  // eindeutig, ohne dass es unangenehm wird. Dazu kommt der leisere Pegel in
-  // initAudio() (TEIL 6).
-  stimmQuelle.setPosition(-3.5, 0, 0);
+  // Stimme kommt von LINKS. Direkt neben dem Ohr würde sie zu sehr drücken,
+  // aus ein paar Metern bleibt die Richtung eindeutig und es klingt angenehm.
+  stimmQuelle.setPosition(-STIMME_ABSTAND_LINKS, 0, 0);
 
   spaeter(() => {
     if (!laeuft) return;
@@ -685,7 +800,7 @@ function szene1Links() {
 function szene1Rechts() {
   console.log('SZENE 1 – Kugel rechts');
   phase = 'intro';
-  stimmQuelle.setPosition(2, 0, 0); // Stimme kommt von RECHTS
+  stimmQuelle.setPosition(STIMME_ABSTAND_RECHTS, 0, 0); // Stimme kommt von RECHTS
 
   spaeter(() => {
     if (!laeuft) return;
@@ -728,15 +843,26 @@ function szene1Rechts() {
 function szene2() {
   console.log('SZENE 2 – Fink');
   phase = 'intro'; // solange die Stimme spricht, gibt es nichts zu steuern
-  stimmQuelle.setPosition(0, 0, -2); // Stimme wieder nach vorne
+  stimmQuelle.setPosition(0, 0, -STIMME_ABSTAND); // Stimme wieder nach vorne
 
   spaeter(() => {
     if (!laeuft) return;
     spieleBettEinmal(swooshS2);
     stoppeBett(nature1, 4);
-    starteBett(nature2, 4, 0.9);
+    // Die Wiese in Szene 2 steht doppelt so laut wie die aus Szene 1 (0.9):
+    // Sie wird ja gleich mit dem Fink verlangsamt und ist dann das eigentliche
+    // Klangereignis, nicht nur Hintergrund.
+    starteBett(nature2, 4, 1.8);
     starteBett(natureFx, 4, 0.45);
   }, S2_SWOOSH_NACH_SEK);
+
+  // "Hier links hörst du einen kurzen Ausschnitt vom Gesang des Hausfinken."
+  // Genau in der Sprechpause nach diesem Satz kommt der Ruf einmal von links –
+  // im Originaltempo, damit man gleich hört, wie er sich später verändert.
+  spaeter(() => {
+    if (!laeuft) return;
+    finkVorschau.spieler.start();
+  }, FINK_VORSCHAU_SEK);
 
   stimme.s2Fink.start();
   stimme.s2Fink.onstop = () => {
@@ -972,8 +1098,13 @@ function tick() {
   }
 
   // ─── 6. Die kleine Anzeige oben in der Ecke (nur zum Entwickeln) ───
+  // Ganz oben die laufende Zeit seit dem Aufsetzen, in Sekunden mit einer
+  // Nachkommastelle. Damit kann man beim Testen sagen "der Swoosh kommt bei
+  // 8.5, er müsste bei 6" – und genau diese Zahl steht dann in TEIL 2.
+  const zeit = startZeit === 0 ? 0 : (performance.now() - startZeit) / 1000;
   const angezeigteKugel = phase === 'kugel2' ? kugel2 : kugel1;
   document.getElementById('hud').innerHTML =
+    `zeit &nbsp;${zeit.toFixed(1)} s<br>` +
     `yaw &nbsp;&nbsp;${yaw.toFixed(2)}<br>` +
     `pitch ${pitch.toFixed(2)}<br>` +
     `phase ${phase}<br>` +
@@ -1008,14 +1139,24 @@ function beiKopfhoererAuf() {
 
   if (laeuft) return; // läuft schon – nichts doppelt starten
 
-  // Die aktuelle Kopfhaltung wird zum neuen "geradeaus" –
-  // jeder Besucher setzt den Kopfhörer ja ein bisschen anders auf.
-  setzeNullstellung();
-
   laeuft = true;
+  startZeit = performance.now(); // ab hier läuft die Uhr in der Anzeige
   document.getElementById('hint').classList.add('hidden');
   starteTick();
-  spaeter(intro, 2); // kurz Ruhe, bevor die Stimme beginnt
+
+  // Jetzt erst einmal nichts. Die Person hat den Kopfhörer eben erst in der
+  // Hand gehabt – sie rückt ihn zurecht, setzt sich hin, schaut nach vorne.
+  //
+  // ERST AM ENDE dieser Ruhe wird "geradeaus" festgelegt, und zwar aus den
+  // letzten KALIBRIER_FENSTER_SEK Sekunden. Genau dann steht der Kopf am
+  // ruhigsten, und der Nullpunkt liegt da, wo die Person wirklich hinschaut.
+  // Würden wir gleich beim ersten Zucken messen, wäre "geradeaus" dort, wo
+  // der Kopfhörer beim Aufsetzen gerade hinzeigte.
+  spaeter(() => {
+    if (!laeuft) return;
+    setzeNullstellung();
+    intro();
+  }, START_VERZOEGERUNG_SEK);
 }
 
 // Der komplette Reset für den nächsten Besucher.
@@ -1029,6 +1170,7 @@ function beiKopfhoererAb() {
 
   laeuft = false;
   phase = 'warten';
+  startZeit = 0; // Uhr anhalten
 
   // Alle noch offenen Timer löschen.
   for (const id of offeneTimer) clearTimeout(id);
@@ -1066,6 +1208,7 @@ function beiKopfhoererAb() {
   fink.lautstaerke.volume.cancelScheduledValues(0);
   fink.lautstaerke.volume.value = -Infinity;
   fink.tempo = 1;
+  finkVorschau.spieler.stop(); // falls der Ruf gerade mitten in der Ansage lief
 
   // Der Musik-Raum: Basis und Instrumente stoppen, alle Pegel auf 0.
   basisSpieler.stop();
@@ -1078,7 +1221,7 @@ function beiKopfhoererAb() {
   }
 
   // Die Stimme zurück nach vorne für den nächsten Durchlauf.
-  stimmQuelle.setPosition(0, 0, -2);
+  stimmQuelle.setPosition(0, 0, -STIMME_ABSTAND);
 
   const hinweis = document.getElementById('hint');
   hinweis.textContent = HINWEIS_TEXT;
