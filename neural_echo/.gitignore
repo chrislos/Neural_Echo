@@ -1,3 +1,11 @@
 node_modules/
 dist/
 .DS_Store
+
+# Xcode: gebaute App und persoenliche Editor-Einstellungen gehoeren nicht ins Repo.
+# Die fertige .app ist code-signiert und enthaelt Mailadresse + Team-ID im Klartext.
+headtracker_bridge/Debug/
+build/
+DerivedData/
+**/xcuserdata/
+*.xcuserstate
