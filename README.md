@@ -72,7 +72,8 @@ neural_echo/
     style.css              Styles
     index.js               der komplette Ablauf: Audio, Szenen, Interaktion
     3dhead.js              alles Sichtbare (Three.js)
-  static/                  ALLE Audio-Dateien – NICHT im Repo, siehe unten
+  static/                  Klänge und Musik – NICHT im Repo, siehe unten
+    voices/DE/             die gesprochenen Ansagen, ein Ordner pro Sprachfassung
   concept/
     skript.txt             das Skript: jeder Satz mit zugehöriger Audio-Datei
     scope.jpg              Konzeptskizze
@@ -90,8 +91,9 @@ neural_echo/
 **850 MB**, davon allein 390 MB Ambisonics. Wer das Repo klont, bekommt Code,
 aber keinen Ton.
 
-Der Inhalt von `neural_echo/static/` muss also separat kopiert werden. Welche
-Dateien gebraucht werden und wie sie heißen müssen, steht in
+Der Inhalt von `neural_echo/static/` muss also separat kopiert werden – und
+zwar mitsamt dem Unterordner `voices/`, in dem die gesprochenen Ansagen liegen.
+Welche Dateien gebraucht werden und wie sie heißen müssen, steht in
 [`neural_echo/README.md`](neural_echo/README.md#audio-inventar).
 
 Das Gleiche gilt für gebaute Sachen: `node_modules/`, `dist/`, die fertige

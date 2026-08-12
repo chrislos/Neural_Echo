@@ -150,21 +150,27 @@ Jede Kugel hat ihren eigenen.
 
 ## Audio-Inventar
 
-Alle Dateien liegen **flach** in `static/`, ohne Unterordner – so kann eine neu
-geschnittene Aufnahme einfach über die alte kopiert werden, ohne dass im Code
-etwas geändert werden muss. Die Szene steckt im Präfix des Dateinamens.
+Die Dateien liegen an **zwei** Orten:
+
+- **Klänge und Musik** flach in `static/`, ohne Unterordner – so kann eine neu
+  geschnittene Aufnahme einfach über die alte kopiert werden, ohne dass im Code
+  etwas geändert werden muss. Die Szene steckt im Präfix des Dateinamens.
+- **Die gesprochenen Ansagen** in `static/voices/DE/`, ein Ordner pro
+  Sprachfassung. Die Dateinamen sind in jeder Fassung gleich; umgeschaltet wird
+  im Code an genau einer Stelle, der Konstanten `STIMMEN_ORDNER` in TEIL 1.
+
+Die zwei Kennzeichnungen im Dateinamen:
 
 - `(mono)` = 1 Kanal, wird von Resonance an eine Stelle im Raum gesetzt
 - `(ambiX)` = 16 Kanäle Ambisonics, eine Rundum-Aufnahme; läuft direkt in
   Resonance und nicht durch Tone.js
 
+**Klänge und Musik – `static/`:**
+
 | Datei | Rolle |
 |---|---|
-| `intro_speech_(mono).wav` | Begrüßung |
 | `intro_swoosh_(ambiX).wav` | öffnet den Raum, mitten in der Begrüßung |
 | `s1_natureLoop_(ambiX).wav` | Wiese, Insekten – das Bett von Szene 1 |
-| `s1_speech1_(mono).wav` | „Hey, hier bin ich…" – kommt von links |
-| `s1_speech2_(mono).wav` | „Sehr gut. Jetzt dreh dich mal nach rechts…" – von rechts |
 | `s1_ineractiveSound1_{distant,middle,near}Loop_(mono).wav` | die drei Schichten der **linken** Kugel |
 | `s1_ineractiveSound2_{distant,middle,near}Loop_(mono).wav` | die drei Schichten der **rechten** Kugel |
 | `s1_ineractiveSound1_success_(ambiX).wav` | Belohnung, linke Kugel eingefangen |
@@ -173,18 +179,37 @@ etwas geändert werden muss. Die Szene steckt im Präfix des Dateinamens.
 | `s2_natureLoop_(ambiX).wav` | Bett Szene 2 – wird mit dem Finken verlangsamt |
 | `s2_lowNatureFxLoop_(ambiX).wav` | zweites Bett Szene 2 – bleibt bewusst im Originaltempo |
 | `s2_fink_(mono).wav` | Hausfink-Ruf, läuft als Loop |
-| `s2_speech1_(mono).wav` | „Jetzt bist du ja schon Profi… / Wusstest du…" – von vorne |
-| `s2_speech2_(mono).wav` | „Hier links hörst du…" – **kommt von links**, aus der Richtung des Vogels |
-| `s2_speech3_(mono).wav` | „Hör zum Schluss noch mal…" |
-| `s3_speech1_(mono).wav` | Ansage Szene 3; endet mit dem Schlusssatz (kein eigenes Outro) |
 | `s3_musik_basis.wav` | Streicherfläche, unter allem |
 | `s3_musik_cello/gitarre/klavier/floete/perkussion.wav` | die fünf Instrumente im Raum |
 
-**Nicht geladene Dateien in `static/`:**
+**Ansagen – `static/voices/DE/`:**
 
-- `s3_speech2_(mono)_Vorschlag von Mathis.wav` – Alternative, wird nicht benutzt
-- `static/Voices/` – Aufnahmen der verschiedenen Sprecherinnen und Sprecher
-  (Anna GER/ENG, Joel, Mathis, Till) als Reservoir
+| Datei | Rolle |
+|---|---|
+| `intro_speech_(mono).wav` | Begrüßung |
+| `s1_speech1_(mono).wav` | „Hey, hier bin ich…" – kommt von links |
+| `s1_speech2_(mono).wav` | „Sehr gut. Jetzt dreh dich mal nach rechts…" – von rechts |
+| `s2_speech1_(mono).wav` | „Jetzt bist du ja schon Profi… / Wusstest du…" – von vorne |
+| `s2_speech2_(mono).wav` | „Hier links hörst du…" – **kommt von links**, aus der Richtung des Vogels |
+| `s2_speech3_(mono).wav` | „Um dessen Komplexität…" – ebenfalls von links, nach dem Ruf des Finken |
+| `s2_speech4_(mono).wav` | „Hör zum Schluss noch mal…" |
+| `s3_speech1_(mono).wav` | Ansage Szene 3; endet mit dem Schlusssatz (kein eigenes Outro) |
+
+Die Ansage von Szene 2 ist in **vier** Teile geschnitten, und beide Schnitte
+haben einen Grund: Ab Teil 2 spricht die Stimme von links, aus der Richtung des
+Vogels. Zwischen Teil 2 und 3 ruft der Fink zwei Mal – als getrennte Dateien
+kann man ihm so viel Zeit lassen, wie er braucht, statt die Pause in die
+Aufnahme schneiden zu müssen.
+
+**Nicht geladene Dateien:**
+
+- `static/voices/DE/s3_speech2_(mono)_Vorschlag von Mathis.wav` – Alternative,
+  wird nicht benutzt
+- die übrigen Ordner in `static/voices/` (Anna GER/ENG, Mathis, Till) –
+  Aufnahmen der verschiedenen Sprecherinnen und Sprecher als Reservoir. Achtung:
+  Ihre Dateinamen weichen ab (`intro_speech_lena_engl.wav`), und `s2_speech3/4`
+  fehlen dort – für eine zweite Sprachfassung müssten sie erst nach dem Muster
+  von `DE/` benannt werden.
 - `static/_old/` – der ausgemusterte Prototyp-Satz
 - `*.asd` – Wellenform-Caches von Ableton, ohne Bedeutung
 
@@ -196,6 +221,7 @@ Alle Zahlen stehen gesammelt in **TEIL 2** von `src/index.js`. Die Klassiker:
 |---|---|
 | Wie schnell eine Kugel kommt, wie eng man treffen muss | `KUGEL_TEMPO_*`, `BLICK_GENAUIGKEIT`, `KUGEL_SOG_AB` |
 | Wie stark sich die Kugeln verstecken | `KUGEL_BLICK_DB_WEG`, `KUGEL_BLICK_SCHAERFE` |
+| Wie sanft eine Kugel auftaucht (und wie lange sie dabei stehen bleibt) | `EINFADE_SEK` |
 | Die Fliege (Rate, Lautstärke, Filter, Hall) | alle `FLIEGE_*` |
 | Lautstärke der Erfolgsklänge | `ERFOLG1_LAUTSTAERKE`, `ERFOLG2_LAUTSTAERKE` |
 | Wie stark der Fink verlangsamt | `FINK_MIN_TEMPO`, `NATUR_MIN_TEMPO`, `FINK_LOOP_KURZ` |
