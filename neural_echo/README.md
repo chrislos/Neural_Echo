@@ -62,7 +62,8 @@ src/
   style.css    Styles
   index.js     der komplette Ablauf: Audio, Szenen, Interaktion, tick()
   3dhead.js    alles Sichtbare (Three.js: Drahtgitter-Kopf, Kugeln)
-static/        alle Audio-Dateien, flach (Vite liefert den Ordner unter '/' aus)
+static/        Klänge und Musik, flach (Vite liefert den Ordner unter '/' aus)
+  voices/DE/   die gesprochenen Ansagen – ein Ordner pro Sprachfassung
 concept/       Skript und Konzeptskizze
 ```
 
@@ -133,6 +134,14 @@ man geradeaus schaut – die Kugel versteckt sich, das Suchen ist die Aufgabe.
 Die Fliege macht das **nicht** mit. Sie ist das Peilsignal; verstummte auch sie,
 wüsste man gar nicht, wohin man sich drehen soll. Beim Wegschauen wird sie nur
 träger, nicht leiser.
+
+**Wie eine Kugel auftaucht.** Ganz am Ende der Kette, kurz vor dem Raum, sitzt
+ein eigener Regler: die `auftauchBlende`. Sie fährt die **ganze** Kugel –
+Aufnahmen und Fliege zusammen – über `EINFADE_SEK` aus der Stille hoch. In
+dieser Zeit bleibt die Kugel stehen (`kugel.auftauchen`), der Blick zählt aber
+schon: Wer bereits hinschaut, hört sie sanft kommen und kann sie danach sofort
+holen. Deshalb steht die Blende ganz hinten und nicht auf einem einzelnen Loop
+– die Blickdämpfung davor darf sich frei bewegen, ohne den Einsatz zu stören.
 
 Ist eine Kugel eingefangen, legt sich ein **Erfolgsklang** über den ganzen Raum
 – eine Ambisonics-Aufnahme, die deshalb aus keiner Richtung kommt, sondern von

@@ -27,8 +27,10 @@ export function erstelleKopfSzene(canvas) {
   // PerspectiveCamera simuliert das menschliche Auge: weiter entfernte Objekte
   // erscheinen kleiner. Parameter: Blickwinkel 50°, Seitenverhältnis,
   // Nah-Clipping 0.1m, Fern-Clipping 100m.
-  // Die Kamera sitzt bei +8 auf der Z-Achse – wir schauen dem Kopf ins Gesicht.
-  // Visuell und Audio haben dadurch gleiche Vorzeichen – keine Spiegelung.
+  // Die Kamera sitzt bei +8 auf der Z-Achse. Der Kopf ist von ihr weggedreht
+  // (siehe setzeKopfDrehung), wir schauen ihm also von hinten über die Schulter.
+  // Visuell und Audio haben dadurch gleiche Vorzeichen – keine Spiegelung:
+  // Drehst du dich nach links, geht die Nase auch auf dem Bildschirm nach links.
   const kamera = new THREE.PerspectiveCamera(50, sizes.width / sizes.height, 0.1, 100);
   kamera.position.set(0, 0, 8);
   kamera.lookAt(0, 0, 0);
@@ -98,11 +100,20 @@ export function erstelleKopfSzene(canvas) {
   // Dreht den Drahtgitter-Kopf passend zu den AirPods-Winkeln.
   // Euler-Reihenfolge YXZ: erst yaw (links/rechts), dann pitch (nicken) –
   // das entspricht der natürlichen Kopfbewegung.
-  // +Math.PI dreht den Kopf um 180°, damit die Nase zur Kamera zeigt.
+  //
+  // Das +Math.PI dreht den Kopf um 180°: Die Nase (sie liegt oben bei z +0.82)
+  // zeigt dadurch von der Kamera WEG, wir schauen dem Kopf also von hinten über
+  // die Schulter. Das ist Absicht – so wandert der Kopf auf dem Bildschirm in
+  // dieselbe Richtung, in die man ihn wirklich dreht, statt gespiegelt.
+  //
+  // Genau diese halbe Umdrehung kehrt aber das Nicken um: Die X-Achse, um die
+  // pitch dreht, zeigt danach nach hinten. Ohne das Minus würde die Nase nach
+  // unten gehen, wenn man nach oben schaut. Beim Kippen (roll) fällt es nicht
+  // auf, weil die Nase auf der Drehachse liegt – dort bewegen sich nur die Ohren.
   function setzeKopfDrehung(yaw, pitch, roll) {
     kopf.rotation.order = 'YXZ';
     kopf.rotation.y = yaw + Math.PI;
-    kopf.rotation.x = pitch;
+    kopf.rotation.x = -pitch;
     kopf.rotation.z = roll;
   }
 

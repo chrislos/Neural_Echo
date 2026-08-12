@@ -73,14 +73,19 @@ When adding to a scene, add it inline – do not extract a helper "for tidiness"
 ```
 src/3dhead.js  – all visuals (Three.js wireframe head, red source balls,
                  renderer). Returns { setzeKopfDrehung, macheKugel, render }.
-static/        – all audio, FLAT (no scene subfolders) so a re-recorded file
-                 can simply be copied over the old one. The scene is encoded
-                 in the filename prefix: intro_, s1_, s2_, s3_. Vite serves
-                 the folder at '/' (publicDir), so a path is just
-                 '/s1_speech1_(mono).wav'. Parentheses need no encoding.
-                 `static/_old/` (retired prototype set), `static/Voices/`
-                 (alternate speaker takes) and `*.asd` (Ableton caches) are
-                 not loaded – ignore them.
+static/        – all sounds and music, FLAT (no scene subfolders) so a
+                 re-recorded file can simply be copied over the old one. The
+                 scene is encoded in the filename prefix: intro_, s1_, s2_,
+                 s3_. Vite serves the folder at '/' (publicDir), so a path is
+                 just '/s2_fink_(mono).wav'. Parentheses need no encoding.
+static/voices/DE/
+               – the spoken lines, one folder per language version, same
+                 filenames in each. TEIL 1 builds them from the single
+                 constant `STIMMEN_ORDNER` – switch language there, not in
+                 each entry.
+                 `static/_old/` (retired prototype set), the other
+                 `static/voices/*` folders (alternate speaker takes) and
+                 `*.asd` (Ableton caches) are not loaded – ignore them.
 start.sh       – exhibition launcher. Order matters: the bridge must answer on
                  port 8080 BEFORE Chrome loads the page, because index.js opens
                  the WebSocket exactly once and never retries.
@@ -104,6 +109,14 @@ watchdog_airpods.sh + tools/blueutil
   scanner. Do not "fix" the signs – they are correct for this setup.
 - Ambisonic beds take a linear GAIN FACTOR (`starteBett(nature2, 4, 2.54)`),
   Tone.js nodes take DECIBELS. Do not mix the two units up.
+- A ball's chain ends in `auftauchBlende`, a Volume right before the Resonance
+  source that fades the WHOLE ball (recorded layers and Fliege) up from silence
+  over `EINFADE_SEK`. `phase` flips to 'kugel1'/'kugel2' immediately when the
+  ball appears, so tick() owns `blickDaempfung` from the first frame — the
+  `kugel.auftauchen` flag, not a delayed phase flip, is what keeps the ball
+  from moving during the fade. Do not reintroduce a delayed handover: a fixed
+  damping during the fade caused an audible 18 dB jump for anyone already
+  looking at the ball.
 - Each ball has four layers: three recorded loops plus the "Fliege", a
   synthesized noise/sawtooth layer built in initAudio(). The Fliege bypasses
   `blickDaempfung` on purpose – it is the homing signal and must stay audible

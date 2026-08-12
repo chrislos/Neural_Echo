@@ -51,9 +51,12 @@ import { erstelleKopfSzene } from './3dhead.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  TEIL 1 – DIE AUDIO-DATEIEN
-//  Alle Aufnahmen liegen flach in static/ – ein Ordner, keine Unterordner.
-//  Der Server bietet diesen Ordner unter '/' an: aus
-//  static/intro_speech_(mono).wav wird '/intro_speech_(mono).wav'.
+//  Alle Klänge und Musikspuren liegen flach in static/, die gesprochenen
+//  Ansagen dagegen in static/voices/DE/ – ein Ordner pro Sprache, damit man
+//  die Sprachfassung als Ganzes austauschen kann.
+//  Der Server bietet static/ unter '/' an: aus static/s2_fink_(mono).wav wird
+//  '/s2_fink_(mono).wav' und aus static/voices/DE/intro_speech_(mono).wav
+//  wird '/voices/DE/intro_speech_(mono).wav'.
 //  Das Präfix im Dateinamen (intro_, s1_, s2_, s3_) sagt, zu welcher Szene
 //  eine Aufnahme gehört. So kann man eine neue Sprachdatei einfach über die
 //  alte kopieren, ohne im Code etwas zu ändern.
@@ -65,13 +68,18 @@ import { erstelleKopfSzene } from './3dhead.js';
 //    "(ambiX)" = 16 Kanäle  → Ambisonics, eine Rundum-Aufnahme (siehe TEIL 4)
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Alle Sprachaufnahmen kommen aus diesem Ordner. Für eine andere Sprache
+// tauscht man nur diese eine Zeile (z. B. '/voices/EN/'), die Dateinamen
+// darunter bleiben in jeder Sprachfassung gleich.
+const STIMMEN_ORDNER = '/voices/DE/';
+
 const DATEIEN = {
-  introStimme: '/intro_speech_(mono).wav',
+  introStimme: STIMMEN_ORDNER + 'intro_speech_(mono).wav',
   introSwoosh: '/intro_swoosh_(ambiX).wav',
 
   s1Natur:   '/s1_natureLoop_(ambiX).wav',
-  s1Stimme1: '/s1_speech1_(mono).wav', // "…dreh deinen Kopf nach links"
-  s1Stimme2: '/s1_speech2_(mono).wav', // "…jetzt nach rechts"
+  s1Stimme1: STIMMEN_ORDNER + 's1_speech1_(mono).wav', // "…dreh deinen Kopf nach links"
+  s1Stimme2: STIMMEN_ORDNER + 's1_speech2_(mono).wav', // "…jetzt nach rechts"
   // s1_speech3 ("Jetzt bist du ja schon Profi…") gibt es nicht mehr als eigene
   // Datei – der Satz steckt jetzt vorne in s2_speech1.
 
@@ -97,15 +105,22 @@ const DATEIEN = {
   s2Natur:   '/s2_natureLoop_(ambiX).wav',      // wird mit-verlangsamt
   s2NaturFx: '/s2_lowNatureFxLoop_(ambiX).wav', // bleibt normal schnell
   s2Fink:    '/s2_fink_(mono).wav',
-  // Die Ansage von Szene 2 besteht aus DREI Teilen. Der Schnitt zwischen 1 und 2
-  // liegt bei "Hier links hörst du…" – und das ist kein Zufall: Ab diesem Satz
-  // spricht die Stimme von links, aus genau der Richtung, aus der gleich der
-  // Fink zwitschert. Deshalb braucht es dort eine eigene Datei.
-  s2Stimme1: '/s2_speech1_(mono).wav', // "Jetzt bist du ja schon Profi… / Wusstest du…"
-  s2Stimme2: '/s2_speech2_(mono).wav', // "Hier links hörst du…" – kommt VON LINKS
-  s2Stimme3: '/s2_speech3_(mono).wav', // "Hör zum Schluss noch mal…"
+  // Die Ansage von Szene 2 besteht aus VIER Teilen. Beide Schnitte haben einen
+  // Grund, sie sind nicht willkürlich gesetzt:
+  //
+  //   1 → 2  liegt bei "Hier links hörst du…". Ab diesem Satz spricht die
+  //          Stimme VON LINKS, aus genau der Richtung, aus der gleich der Fink
+  //          zwitschert.
+  //   2 → 3  liegt in der Pause, in der der Fink ruft. Er ruft zwei Mal, und
+  //          das dauert länger als jede Pause, die man in eine Aufnahme
+  //          schneiden würde. Als zwei Dateien können wir uns so viel Zeit
+  //          lassen, wie der Vogel braucht, und danach weitersprechen.
+  s2Stimme1: STIMMEN_ORDNER + 's2_speech1_(mono).wav', // "Jetzt bist du ja schon Profi… / Wusstest du…"
+  s2Stimme2: STIMMEN_ORDNER + 's2_speech2_(mono).wav', // "Hier links hörst du…" – kommt VON LINKS
+  s2Stimme3: STIMMEN_ORDNER + 's2_speech3_(mono).wav', // "Um dessen Komplexität…" – auch von links
+  s2Stimme4: STIMMEN_ORDNER + 's2_speech4_(mono).wav', // "Hör zum Schluss noch mal…"
 
-  s3Stimme1:    '/s3_speech1_(mono).wav',
+  s3Stimme1:    STIMMEN_ORDNER + 's3_speech1_(mono).wav',
   s3Basis:      '/s3_musik_basis.wav',
   s3Cello:      '/s3_musik_cello.wav',
   s3Gitarre:    '/s3_musik_gitarre.wav',
@@ -286,22 +301,39 @@ const KUGEL_BLICK_SCHAERFE = 3;   // größer = engerer Hörkegel
 // ganz rechts = stark verlangsamt (und dadurch tiefer, wie eine Bandmaschine).
 const FINK_YAW_LINKS  =  Math.PI / 2; // +90 Grad = ganz links
 const FINK_YAW_RECHTS = -Math.PI / 2; // -90 Grad = ganz rechts
-const FINK_MIN_TEMPO  = 0.15; // langsamster Punkt: 15 % Geschwindigkeit
+const FINK_MIN_TEMPO  = 0.1;  // langsamster Punkt: 10 % Geschwindigkeit – der Ruf
+                              // liegt dort gut drei Oktaven tiefer als im
+                              // Original und zieht mit dem Natur-Bett gleich.
 const NATUR_MIN_TEMPO = 0.1;  // das Natur-Bett wird noch etwas stärker gebremst
 const FINK_ABSTAND    = 2;    // Meter: so weit vor den Augen schwebt der Vogel
 const FINK_LOOP_KURZ  = 0.4;  // Sekunden: kürzeste Loop-Länge (siehe TEIL 8)
 
-// Der kurze Vorgeschmack mitten in der Ansage. Die Sekunde bezieht sich auf den
-// Start von s2_speech2 – also auf den Teil, der von links gesprochen wird. Dort
-// sagt die Sprecherin "Hier links hörst du einen kurzen Ausschnitt vom Gesang
-// des Hausfinken", und genau in der Sprechpause danach zwitschert er einmal.
-const FINK_VORSCHAU_SEK      = 3.9; // Sekunde in s2_speech2
-const FINK_VORSCHAU_ABSTAND  = 2;   // Meter links vom Hörer
+// Der kurze Vorgeschmack zwischen den zwei Ansagen von links. Die Sprecherin
+// sagt in s2_speech2 "Hier links hörst du einen kurzen Ausschnitt vom Gesang
+// des Hausfinken" – und wenn diese Datei durch ist, gehört die Pause dem Vogel.
+//
+// Er ruft ZWEI Mal. Einmal ist zu wenig, um sich eine Melodie zu merken – und
+// genau darum geht es gleich, wenn man die Zeit dehnt.
+//
+// Alle drei Zeiten zählen ab dem ENDE von s2_speech2.
+const FINK_VORSCHAU_NACH_SEK  = 0.6; // kurz Luft holen, dann der erste Ruf
+const FINK_VORSCHAU_PAUSE_SEK = 2.4; // dann kommt derselbe Ruf ein zweites Mal.
+                                     // Die Aufnahme ist 1,9 s lang, es bleibt
+                                     // also eine halbe Sekunde Luft dazwischen –
+                                     // so klingt es nach einem Vogel, der zwei
+                                     // Mal ruft, und nicht nach einem Loop.
+const S2_STIMME3_NACH_SEK     = 6;   // dann spricht sie weiter. Der zweite Ruf
+                                     // ist bei 0,6 + 2,4 + 1,9 = 4,9 s vorbei,
+                                     // er darf also noch gut eine Sekunde
+                                     // nachhängen, bevor sie einsetzt.
+const FINK_VORSCHAU_ABSTAND   = 2;   // Meter links vom Hörer
 
 // Die Ansage s2_speech2 kommt aus derselben RICHTUNG wie der Vogel, steht aber
-// zwei Meter weiter hinten. Dadurch bleibt "hier links" räumlich stimmig, und
-// der Vogel sitzt trotzdem klar vor der Sprecherin statt in ihr drin.
-const S2_STIMME_LINKS_ABSTAND = FINK_VORSCHAU_ABSTAND + 2;
+// deutlich weiter hinten. Dadurch bleibt "hier links" räumlich stimmig, und der
+// Vogel sitzt klar VOR der Sprecherin statt in ihr drin. Vier Meter Abstand
+// klingen nach "sie steht drüben im Raum" – der Vogel bekommt dadurch den
+// Vordergrund, auf den es in diesem Moment ankommt.
+const S2_STIMME_LINKS_ABSTAND = FINK_VORSCHAU_ABSTAND + 4;
 
 // Wie laut der Fink läuft, sobald man ihn steuern darf. Steht hier, weil er an
 // mehreren Stellen gebraucht wird: beim ersten Einfaden, beim Verstummen während
@@ -317,17 +349,30 @@ const FINK_STUMM_FADE_SEK    = 1.5; // so sanft geht er weg und kommt zurück
 // Lichtkegel einer Taschenlampe. "pegel" ist die aktuelle Lautstärke von
 // 0 (stumm) bis 1 (voll); die rechnet TEIL 8 jede Frame neu aus.
 //
+// "db" gleicht aus, dass die fünf Aufnahmen unterschiedlich kräftig sind. 0
+// heißt "so wie alle anderen", die Zahl wird auf ORCH_GRUND_DB draufgerechnet.
+// Es geht dabei NICHT um Wichtigkeit, sondern darum, dass kein Instrument beim
+// Herumschauen heraussticht oder untergeht.
+//
 // Warum das Klavier auf 60 statt 90 Grad hängt: Niemand legt den Kopf senkrecht
 // nach oben. Bei 60 Grad reicht ein deutliches Nicken – und es klingt trotzdem
 // eindeutig von oben.
+//
+// Die vier anderen stehen bei 45 und 100 Grad, also zwei davon knapp HINTER der
+// Ohrachse (90 Grad wäre genau seitlich). Das ist Absicht: Vorne im Blickfeld
+// liegen die Instrumente sonst so dicht beieinander, dass man beim Umschauen
+// mehrere gleichzeitig erwischt. Weiter außen ist jedes klar für sich – und man
+// muss sich wirklich umdrehen, um das letzte zu finden. Der Kegel (beam 25)
+// beginnt trotzdem schon bei 75 Grad Kopfdrehung, es bleibt also erreichbar.
 const orchester = [
-  { name: 'cello',      datei: DATEIEN.s3Cello,      azimut:  80, hoehe:  0, beam: 25, pegel: 0 },
-  { name: 'gitarre',    datei: DATEIEN.s3Gitarre,    azimut:  40, hoehe:  0, beam: 25, pegel: 0 },
-  { name: 'klavier',    datei: DATEIEN.s3Klavier,    azimut:   0, hoehe: 60, beam: 40, pegel: 0 },
-  { name: 'floete',     datei: DATEIEN.s3Floete,     azimut: -40, hoehe:  0, beam: 25, pegel: 0 },
-  { name: 'perkussion', datei: DATEIEN.s3Perkussion, azimut: -80, hoehe:  0, beam: 25, pegel: 0 },
+  { name: 'cello',      datei: DATEIEN.s3Cello,      azimut: 100, hoehe:  0, beam: 25, db:  2, pegel: 0 },
+  { name: 'gitarre',    datei: DATEIEN.s3Gitarre,    azimut:  45, hoehe:  0, beam: 25, db: -4, pegel: 0 },
+  { name: 'klavier',    datei: DATEIEN.s3Klavier,    azimut:   0, hoehe: 60, beam: 40, db:  0, pegel: 0 },
+  { name: 'floete',     datei: DATEIEN.s3Floete,     azimut: -45, hoehe:  0, beam: 25, db:  0, pegel: 0 },
+  { name: 'perkussion', datei: DATEIEN.s3Perkussion, azimut:-100, hoehe:  0, beam: 25, db:  3, pegel: 0 },
 ];
-const ORCH_ABSTAND = 6;   // Meter: so weit weg stehen die Instrumente
+const ORCH_ABSTAND  = 6;  // Meter: so weit weg stehen die Instrumente
+const ORCH_GRUND_DB = -6; // Dezibel: der gemeinsame Startpunkt aller Instrumente
 const ANSCHAU_SEK  = 2.5; // Sekunden: so schnell fadet ein Instrument ein
 const AUSKLING_SEK = 10;  // Sekunden: so langsam klingt es wieder aus. Bewusst
                           // viel länger als das Einfaden – dreht man sich weg,
@@ -350,7 +395,7 @@ const INTRO_SWOOSH_NACH_SEK = 6;   // Swoosh kommt mitten in die Intro-Stimme.
                                    // Gemessen ab dem ersten Wort, nicht ab
                                    // der Uhr in der Anzeige – die läuft schon
                                    // 2 Sekunden früher los (siehe TEIL 9).
-const S2_SWOOSH_NACH_SEK    = 13.4; // In Szene 2 wechselt der Raum ERST, wenn
+const S2_SWOOSH_NACH_SEK    = 8.95; // In Szene 2 wechselt der Raum ERST, wenn
                                     // die ganze Ansage gesprochen ist. Sie ist
                                     // ja selbst die Überleitung: Sie beginnt
                                     // noch in Szene 1 ("Jetzt bist du ja schon
@@ -359,15 +404,16 @@ const S2_SWOOSH_NACH_SEK    = 13.4; // In Szene 2 wechselt der Raum ERST, wenn
                                     // der Schlusspause ein, kurz bevor der Fink
                                     // zu hören ist.
                                     //
-                                    // Gezählt ab dem Start von s2_speech2, so
-                                    // wie FINK_VORSCHAU_SEK auch. speech2 ist
-                                    // 14,3 s lang – 13,4 liegt also ganz am Ende.
+                                    // ACHTUNG, gezählt ab dem Start von
+                                    // s2_speech3 – dem letzten der vier Teile
+                                    // vor dem Fink. Das letzte Wort fällt dort
+                                    // auf etwa 9,1 s.
 // Ruhe, bevor "Jetzt bist du ja schon Profi…" einsetzt. Die zwei Sekunden
 // geben der eingefangenen Kugel Zeit auszuklingen, bevor gesprochen wird.
 //
-// Die zwei Zeiten oben (FINK_VORSCHAU_SEK und S2_SWOOSH_NACH_SEK) zählen ab dem
-// Start von s2_speech2 und sind von dieser Wartezeit deshalb NICHT betroffen –
-// speech2 startet ja erst, wenn speech1 fertig gesprochen hat.
+// Alle späteren Zeiten in Szene 2 hängen an einer Datei (sie zählen ab deren
+// Ende oder Start) und sind von dieser Wartezeit deshalb NICHT betroffen –
+// speech2 beginnt ja erst, wenn speech1 fertig gesprochen hat.
 const S2_STIMME_NACH_SEK    = 2;
 
 const PAUSE_VOR_LINKS_SEK   = 11.8; // Ruhe, bevor die Stimme von links spricht.
@@ -507,14 +553,17 @@ const stimme = {};
 //   fliegeRauschen/fliegeLautstaerke: das vierte, erzeugte Layer (siehe TEIL 2)
 //   fliegeTempoLfo: der Sägezahn, der es zerhackt
 //   fliegeFilter: der Tiefpass, der mit der Entfernung aufgeht
+//   auftauchBlende: der Einfade-Regler beim Auftauchen (siehe TEIL 6)
+//   auftauchen: true, solange diese Blende noch hochfährt – so lange bleibt
+//               die Kugel stehen, obwohl der Blick schon zählt (siehe TEIL 8)
 //
 // Warum die linke Kugel einen eigenen pegel hat: Ihre Aufnahme drückt deutlich
 // mehr als die rechte – aber erst, wenn sie nah ist. Deshalb wirken die -6 dB
 // auch erst dort. Ganz weit weg sind beide Kugeln gleich laut, sonst wäre die
 // linke beim Auftauchen schwerer zu finden als die rechte. Die Entfernung ist
 // bei beiden gleich (DIST_NAH), ausgeglichen wird allein über die Lautstärke.
-const kugel1 = { richtung: -1, dist: DIST_FERN, nahDist: DIST_NAH, pegel: -6, tempo: KUGEL_TEMPO_WEIT, kugel3d: null, quelle: null, spieler: [], lautstaerken: [], fliegeRauschen: null, fliegeLautstaerke: null, fliegeTempoLfo: null, fliegeFilter: null, blickDaempfung: null };
-const kugel2 = { richtung:  1, dist: DIST_FERN, nahDist: DIST_NAH, pegel: 0, tempo: KUGEL_TEMPO_WEIT, kugel3d: null, quelle: null, spieler: [], lautstaerken: [], fliegeRauschen: null, fliegeLautstaerke: null, fliegeTempoLfo: null, fliegeFilter: null, blickDaempfung: null };
+const kugel1 = { richtung: -1, dist: DIST_FERN, nahDist: DIST_NAH, pegel: -6, tempo: KUGEL_TEMPO_WEIT, kugel3d: null, quelle: null, spieler: [], lautstaerken: [], fliegeRauschen: null, fliegeLautstaerke: null, fliegeTempoLfo: null, fliegeFilter: null, blickDaempfung: null, auftauchBlende: null, auftauchen: false };
+const kugel2 = { richtung:  1, dist: DIST_FERN, nahDist: DIST_NAH, pegel: 0, tempo: KUGEL_TEMPO_WEIT, kugel3d: null, quelle: null, spieler: [], lautstaerken: [], fliegeRauschen: null, fliegeLautstaerke: null, fliegeTempoLfo: null, fliegeFilter: null, blickDaempfung: null, auftauchBlende: null, auftauchen: false };
 
 // Der Fink aus Szene 2.
 const fink = { spieler: null, lautstaerke: null, quelle: null, tempo: 1 };
@@ -911,8 +960,9 @@ async function initAudio() {
   stimme.s1Links  = new Tone.Player(DATEIEN.s1Stimme1).connect(stimmQuelle.input);
   stimme.s1Rechts = new Tone.Player(DATEIEN.s1Stimme2).connect(stimmQuelle.input);
   stimme.s2Teil1  = new Tone.Player(DATEIEN.s2Stimme1).connect(stimmQuelle.input);
-  stimme.s2Links  = new Tone.Player(DATEIEN.s2Stimme2).connect(stimmQuelle.input);
-  stimme.s2Ende   = new Tone.Player(DATEIEN.s2Stimme3).connect(stimmQuelle.input);
+  stimme.s2Links1 = new Tone.Player(DATEIEN.s2Stimme2).connect(stimmQuelle.input);
+  stimme.s2Links2 = new Tone.Player(DATEIEN.s2Stimme3).connect(stimmQuelle.input);
+  stimme.s2Ende   = new Tone.Player(DATEIEN.s2Stimme4).connect(stimmQuelle.input);
   stimme.s3       = new Tone.Player(DATEIEN.s3Stimme1).connect(stimmQuelle.input);
 
   // Die Ansage von links stand früher näher am Ohr als die anderen und war
@@ -920,6 +970,21 @@ async function initAudio() {
   // sind, gilt das nicht mehr – jetzt darf sie sogar etwas drüber liegen,
   // weil sie von der Seite kommt und dort weniger präsent wirkt.
   stimme.s1Links.volume.value = 1;
+
+  // Zwei Ansagen in Szene 2 mussten nachgezogen werden – beide, weil neben
+  // ihnen etwas anderes im Vordergrund steht:
+  //
+  //   "Um dessen Komplexität…"  spricht aus 6 Metern von links, doppelt so weit
+  //                             weg wie die übrigen Ansagen. Resonance macht
+  //                             Entferntes leiser, das holen wir hier zurück.
+  //   "Hör zum Schluss…"        liegt über der laufenden Szene: Natur-Bett,
+  //                             FX-Bett und der ausfadende Fink. Dagegen muss
+  //                             sie sich durchsetzen, sonst überhört man sie.
+  //
+  // Die Zahlen sind DEZIBEL (Tone.js rechnet hier in dB, nicht in Faktoren):
+  // +6 dB ist ungefähr doppelt so laut empfunden, +4 dB deutlich hörbar mehr.
+  stimme.s2Links2.volume.value = 4;
+  stimme.s2Ende.volume.value   = 6;
 
   // ─── Die sieben Ambisonics-Dateien ───
   // Bewusst NACHEINANDER (jedes await wartet auf das vorherige): zusammen sind
@@ -948,12 +1013,20 @@ async function initAudio() {
 
     kugel.kugel3d = kopf3d.macheKugel();
 
+    // Ganz am Ende der Kette, kurz vor dem Raum, sitzt die Auftauch-Blende.
+    // Sie hat nur EINE Aufgabe: Beim Auftauchen fährt sie über EINFADE_SEK aus
+    // der Stille hoch, damit die Kugel nicht in den Raum springt. Alles andere
+    // hängt hinter ihr – auch die Fliege –, also fadet die ganze Kugel als
+    // Ganzes ein, egal wohin du gerade schaust.
+    kugel.auftauchBlende = new Tone.Volume(-Infinity);
+    kugel.auftauchBlende.connect(kugel.quelle.input);
+
     // Ein einziger Regler HINTER den drei Loops senkt alle gemeinsam ab, solange
     // du nicht hinschaust. Als eigener Knoten, damit die Ein- und Ausfahrten der
     // einzelnen Loops davon nichts mitbekommen – jeder Regler kümmert sich um
     // genau eine Sache. Er startet abgesenkt, denn zu Beginn schaust du geradeaus.
     kugel.blickDaempfung = new Tone.Volume(KUGEL_BLICK_DB_WEG);
-    kugel.blickDaempfung.connect(kugel.quelle.input);
+    kugel.blickDaempfung.connect(kugel.auftauchBlende);
 
     for (const url of dateiListe) { // Reihenfolge: fern → mittel → nah
       const regler = new Tone.Volume(-Infinity);
@@ -975,13 +1048,14 @@ async function initAudio() {
     // ganze Annäherung hinweg langsam auf – das ist die langsame Bewegung.
     // Beides an denselben Sägezahn zu hängen, hat sich als zu unruhig erwiesen.
     //
-    // WICHTIG: Die Fliege geht direkt in die Quelle und NICHT durch
-    // blickDaempfung. Sie ist ja das Peilsignal – wenn auch sie verstummen
-    // würde, sobald man geradeaus schaut, hätte man keinen Anhaltspunkt mehr,
-    // wohin man sich überhaupt drehen soll. Beim Wegschauen wird sie nur
-    // träger, nicht leiser.
+    // WICHTIG: Die Fliege geht an blickDaempfung VORBEI. Sie ist ja das
+    // Peilsignal – wenn auch sie verstummen würde, sobald man geradeaus schaut,
+    // hätte man keinen Anhaltspunkt mehr, wohin man sich überhaupt drehen soll.
+    // Beim Wegschauen wird sie nur träger, nicht leiser. Durch die
+    // Auftauch-Blende läuft sie aber sehr wohl – ihr Einsatz soll ja genauso
+    // sanft sein wie der der Aufnahmen.
     kugel.fliegeLautstaerke = new Tone.Volume(-Infinity);
-    kugel.fliegeLautstaerke.connect(kugel.quelle.input);
+    kugel.fliegeLautstaerke.connect(kugel.auftauchBlende);
 
     kugel.fliegeRauschen = new Tone.Noise(FLIEGE_RAUSCH_ART);
 
@@ -1063,8 +1137,14 @@ async function initAudio() {
     // dann steht in TEIL 8 alles beisammen.
     instrument.lautstaerke = new Tone.Volume(-Infinity);
     instrument.lautstaerke.connect(quelle.input);
-    instrument.spieler = new Tone.Player({ url: instrument.datei, loop: true, volume: -6 })
-      .connect(instrument.lautstaerke);
+    // Der eigene db-Wert kommt auf den gemeinsamen Grundpegel drauf. Er steht
+    // HIER am Abspieler und nicht am Regler darunter: Den schreibt TEIL 8 in
+    // jeder Frame neu, dort wäre die Anpassung sofort wieder überschrieben.
+    instrument.spieler = new Tone.Player({
+      url: instrument.datei,
+      loop: true,
+      volume: ORCH_GRUND_DB + instrument.db,
+    }).connect(instrument.lautstaerke);
   }
 
   // ─── Fertig ───
@@ -1146,9 +1226,8 @@ function szene1Links() {
     stimme.s1Links.onstop = () => {
       if (!laeuft) return;
 
-      // Die Kugel taucht auf: erst steht sie still ganz weit weg und ihr
-      // Fern-Loop fadet hoch – ERST DANN darf TEIL 8 sie auf den Blick
-      // reagieren lassen (phase = 'kugel1').
+      // Die Kugel taucht auf: Sie steht still ganz weit weg, und die
+      // Auftauch-Blende holt sie über EINFADE_SEK aus der Stille herauf.
       kugel1.dist = DIST_FERN;
       kugel1.quelle.setPosition(kugel1.richtung * DIST_FERN, 0, 0);
       kugel1.kugel3d.position.set(kugel1.richtung * DIST_FERN, 0, 0);
@@ -1156,21 +1235,31 @@ function szene1Links() {
 
       for (const spieler of kugel1.spieler) spieler.start();
 
-      // Ziel des Einfadens ist GENAU der Wert, den TEIL 8 gleich weiterrechnet:
-      // LAYER1_DB_FERN, ohne Korrektur – die Kugel ist ja noch ganz weit weg,
-      // und dort wirkt pegel nicht. Sonst gäbe es einen hörbaren Sprung in dem
-      // Moment, in dem TEIL 8 die Lautstärke übernimmt.
-      kugel1.lautstaerken[0].volume.rampTo(LAYER1_DB_FERN, EINFADE_SEK);
-
       // Rauschen und Sägezahn laufen ab jetzt durchgehend – hörbar wird davon
-      // nur, was der Lautstärke-Regler durchlässt. Der fadet mit hoch,
-      // Flatterrate und Filter übernimmt TEIL 8, sobald phase umgestellt ist.
+      // nur, was die Regler durchlassen.
       kugel1.fliegeRauschen.start();
       kugel1.fliegeTempoLfo.start();
-      kugel1.fliegeLautstaerke.volume.rampTo(FLIEGE_DB_FERN + FLIEGE_BLICK_DB_WEG, EINFADE_SEK);
+
+      // WARUM die Blende und nicht einfach ein Fade auf dem Fern-Loop:
+      // Wie laut die Kugel ist, hängt auch davon ab, wohin du schaust
+      // (blickDaempfung, -18 dB beim Wegschauen). Früher lief der Fade hinter
+      // einer FESTEN Dämpfung ab, und in dem Moment, in dem TEIL 8 übernahm,
+      // sprang sie auf den Wert für die echte Blickrichtung. Wer schon nach
+      // links schaute, bekam die Kugel deshalb mit einem Schlag um 18 dB
+      // lauter – genau das klang abrupt. Jetzt rechnet TEIL 8 den Blick von
+      // der ersten Frame an mit, und die Blende davor macht den sanften
+      // Einsatz. Es gibt also keine Übergabe mehr, an der etwas springen kann.
+      kugel1.auftauchBlende.volume.cancelScheduledValues(0);
+      kugel1.auftauchBlende.volume.value = -Infinity;
+      kugel1.auftauchBlende.volume.rampTo(0, EINFADE_SEK);
+
+      // Blick zählt sofort, bewegen darf sie sich noch nicht: auftauchen hält
+      // sie stehen, bis die Blende oben ist (siehe TEIL 8).
+      kugel1.auftauchen = true;
+      phase = 'kugel1';
 
       spaeter(() => {
-        if (laeuft) phase = 'kugel1';
+        if (laeuft) kugel1.auftauchen = false;
       }, EINFADE_SEK);
     };
   }, PAUSE_VOR_LINKS_SEK);
@@ -1196,14 +1285,19 @@ function szene1Rechts() {
       kugel2.kugel3d.visible = true;
 
       for (const spieler of kugel2.spieler) spieler.start();
-      kugel2.lautstaerken[0].volume.rampTo(LAYER1_DB_FERN, EINFADE_SEK);
 
       kugel2.fliegeRauschen.start();
       kugel2.fliegeTempoLfo.start();
-      kugel2.fliegeLautstaerke.volume.rampTo(FLIEGE_DB_FERN + FLIEGE_BLICK_DB_WEG, EINFADE_SEK);
+
+      kugel2.auftauchBlende.volume.cancelScheduledValues(0);
+      kugel2.auftauchBlende.volume.value = -Infinity;
+      kugel2.auftauchBlende.volume.rampTo(0, EINFADE_SEK);
+
+      kugel2.auftauchen = true;
+      phase = 'kugel2';
 
       spaeter(() => {
-        if (laeuft) phase = 'kugel2';
+        if (laeuft) kugel2.auftauchen = false;
       }, EINFADE_SEK);
     };
   }, PAUSE_VOR_STIMME_SEK);
@@ -1212,12 +1306,18 @@ function szene1Rechts() {
 // SZENE 2 – der Hausfink.
 // Die Ansage s2_speech1 ist EINE lange Datei, die noch in Szene 1 anfängt
 // ("Jetzt bist du ja schon Profi im Klänge herbeilocken…") und dann zum
-// Hausfink überleitet. Deshalb läuft sie hier von Anfang bis Ende durch, und
-// der Raum wechselt MITTENDRIN: nach S2_SWOOSH_NACH_SEK, genau in der
-// Sprechpause vor "Wusstest du, dass…". Dasselbe Prinzip wie beim Intro.
+// Hausfink überleitet. Deshalb läuft sie hier von Anfang bis Ende durch.
 //
-// Der Fink kommt noch später – erst wenn die Stimme ganz fertig ist. Er soll
-// nicht in die Ansage hineinzwitschern. Ab da übersetzt TEIL 8 jede
+// Danach spricht sie VON LINKS weiter, und zwar in zwei Dateien: Zwischen
+// s2_speech2 ("Hier links hörst du…") und s2_speech3 ("Um dessen Komplexität…")
+// liegt die Pause, in der der Fink zwei Mal als Vorgeschmack ruft.
+//
+// Der Raum wechselt erst am Ende der Ansage: Der Swoosh setzt nach
+// S2_SWOOSH_NACH_SEK in s2_speech3 ein, in der Schlusspause nach
+// "…um die Zeit zu verlangsamen".
+//
+// Der echte Fink kommt noch später – erst wenn die Stimme ganz fertig ist. Er
+// soll nicht in die Ansage hineinzwitschern. Ab da übersetzt TEIL 8 jede
 // Kopfdrehung in Tempo.
 //
 // Szene 2 hat ZWEI Ambisonics-Betten übereinander:
@@ -1237,24 +1337,45 @@ function szene2() {
   }, S2_STIMME_NACH_SEK);
 
   // TEIL 2 – ab hier VON LINKS. Die Stimme wandert auf genau die Stelle, an der
-  // gleich der Fink zwitschert, und benutzt dafür denselben Abstand wie er.
+  // gleich der Fink zwitschert, nur ein Stück weiter dahinter.
   // Dadurch sagt sie "hier links" tatsächlich von dort, wo "hier" ist.
   stimme.s2Teil1.onstop = () => {
     if (!laeuft) return;
 
     stimmQuelle.setPosition(-S2_STIMME_LINKS_ABSTAND, 0, 0);
-    stimme.s2Links.start();
+    stimme.s2Links1.start();
+  };
 
-    // Beide Zeiten zählen ab HIER, also ab dem Start von speech2.
-    //
-    // "Hier links hörst du einen kurzen Ausschnitt vom Gesang des Hausfinken."
-    // Genau in der Sprechpause nach diesem Satz kommt der Ruf einmal von links –
-    // im Originaltempo, damit man gleich hört, wie er sich später verändert.
+  // "…vom Gesang des Hausfinken." Jetzt gehört die Pause dem Vogel: Er ruft
+  // zwei Mal von links, im Originaltempo, damit man gleich hört, wie er sich
+  // später verändert. Erst danach spricht sie weiter.
+  //
+  // Deshalb sind das zwei Dateien und nicht eine: So lang wie diese Pause
+  // schneidet man keine Stille in eine Sprachaufnahme.
+  // Alle Zeiten hier zählen ab dem Ende von s2_speech2.
+  stimme.s2Links1.onstop = () => {
+    if (!laeuft) return;
+
     spaeter(() => {
       if (!laeuft) return;
       finkVorschau.spieler.start();
-    }, FINK_VORSCHAU_SEK);
+    }, FINK_VORSCHAU_NACH_SEK);
 
+    spaeter(() => {
+      if (!laeuft) return;
+      finkVorschau.spieler.start();
+    }, FINK_VORSCHAU_NACH_SEK + FINK_VORSCHAU_PAUSE_SEK);
+
+    // TEIL 3 – "Um dessen Komplexität nun besser wahrnehmen zu können…",
+    // weiterhin von links.
+    spaeter(() => {
+      if (!laeuft) return;
+      stimme.s2Links2.start();
+    }, S2_STIMME3_NACH_SEK);
+
+    // Der Raum wechselt mitten in TEIL 3, in dessen Schlusspause. Gezählt wird
+    // ab hier, deshalb die zwei Zeiten zusammen: erst warten, bis TEIL 3 läuft,
+    // dann noch S2_SWOOSH_NACH_SEK in die Datei hinein.
     spaeter(() => {
       if (!laeuft) return;
       spieleBettEinmal(swooshS2);
@@ -1269,10 +1390,12 @@ function szene2() {
       // multipliziert – +3 dB sind mal 1.41. Aus den früheren 1.8 werden so 2.54.
       starteBett(nature2, 4, 2.54);
       starteBett(natureFx, 4, 0.45);
-    }, S2_SWOOSH_NACH_SEK);
+    }, S2_STIMME3_NACH_SEK + S2_SWOOSH_NACH_SEK);
   };
 
-  stimme.s2Links.onstop = () => {
+  // Ausgesprochen – jetzt übernimmt der echte Fink, und der Kopf wird zum
+  // Geschwindigkeitsregler.
+  stimme.s2Links2.onstop = () => {
     if (!laeuft) return;
 
     fink.spieler.playbackRate = 1; // sicherheitshalber im Originaltempo starten
@@ -1417,7 +1540,12 @@ function tick() {
     const schautHin    = blickTreffer > BLICK_GENAUIGKEIT;
 
     // Hinschauen zieht die Kugel heran, Wegschauen lässt sie zurückweichen.
-    if (schautHin) {
+    // Solange sie noch auftaucht, bleibt sie stehen: Erst soll man sie in Ruhe
+    // hören, dann darf man sie holen. Die Lautstärken darunter rechnen aber
+    // schon mit – sonst gäbe es beim Losfahren einen Sprung.
+    if (kugel.auftauchen) {
+      // nichts bewegen
+    } else if (schautHin) {
       kugel.dist = Math.max(kugel.nahDist, kugel.dist - kugel.tempo * deltaZeit);
     } else {
       kugel.dist = Math.min(DIST_FERN, kugel.dist + RUECKZUG_TEMPO * deltaZeit);
@@ -1755,6 +1883,12 @@ function beiKopfhoererAb() {
     kugel.fliegeRauschen.stop();
     kugel.fliegeTempoLfo.stop();
     kugel.blickDaempfung.volume.value = KUGEL_BLICK_DB_WEG;
+
+    // Die Auftauch-Blende wieder ganz zu – die nächste Runde soll erneut aus
+    // der Stille kommen und nicht dort weitermachen, wo diese aufgehört hat.
+    kugel.auftauchBlende.volume.cancelScheduledValues(0);
+    kugel.auftauchBlende.volume.value = -Infinity;
+    kugel.auftauchen = false;
 
     kugel.dist  = DIST_FERN;
     kugel.tempo = 0.8;
