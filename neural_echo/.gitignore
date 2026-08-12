@@ -2,6 +2,11 @@ node_modules/
 dist/
 .DS_Store
 
+# Laufzeit-Logs: der LaunchAgent (~/Library/LaunchAgents/com.neuralecho.start.plist)
+# schreibt start.log und start-error.log in diesen Ordner, watchdog_airpods.sh
+# ebenfalls. Reine Betriebsdaten der Ausstellung, nicht Teil des Projekts.
+*.log
+
 # Xcode: gebaute App und persoenliche Editor-Einstellungen gehoeren nicht ins Repo.
 # Die fertige .app ist code-signiert und enthaelt Mailadresse + Team-ID im Klartext.
 headtracker_bridge/Debug/
