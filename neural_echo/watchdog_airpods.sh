@@ -38,17 +38,6 @@ LANGE_PAUSE=60
 # reicht deshalb nicht, es muss bei jeder Pruefung erneut gesetzt werden.
 LAUTSTAERKE_ZIEL=100
 
-# Soll Chrome bei jeder Pruefung nach vorn geholt werden? 1 = ja, 0 = nein.
-# Warum: verliert das Kiosk-Fenster den Fokus – z.B. weil der Monitor kurz
-# stromlos war – haelt macOS es fuer verdeckt und Chrome drosselt dann
-# requestAnimationFrame. Genau darauf laeuft tick() in src/index.js: die
-# Kopfdrehung kommt zwar weiter per WebSocket an, wird aber nicht mehr
-# verarbeitet, bis das Fenster wieder Fokus bekommt.
-#
-# ZUM ENTWICKELN auf 0 stellen! Sonst springt der Fokus alle paar Sekunden
-# nach Chrome, waehrend man im Editor tippt.
-CHROME_NACH_VORN=1
-
 # ─────────────────────────────────────────────────────────────
 # HILFSMITTEL
 # ─────────────────────────────────────────────────────────────
@@ -64,22 +53,6 @@ melde() {
 # naechsten Pruefung ohnehin wieder versucht.
 setze_lautstaerke() {
   osascript -e "set volume output volume $LAUTSTAERKE_ZIEL" >/dev/null 2>&1
-}
-
-# Holt das Chrome-Fenster nach vorn (siehe Begruendung bei CHROME_NACH_VORN).
-# Ist Chrome schon vorn, passiert nichts Sichtbares – der Aufruf ist also
-# gefahrlos wiederholbar.
-hole_chrome_nach_vorn() {
-  if [ "$CHROME_NACH_VORN" != "1" ]; then
-    return
-  fi
-
-  # Erst pruefen, ob Chrome ueberhaupt laeuft: "activate" wuerde die App sonst
-  # von sich aus STARTEN. Nach dem Ende der Ausstellung soll sich der Browser
-  # aber nicht alle 10 Sekunden von selbst wieder oeffnen.
-  if pgrep -x "Google Chrome" >/dev/null 2>&1; then
-    osascript -e 'tell application "Google Chrome" to activate' >/dev/null 2>&1
-  fi
 }
 
 # ─────────────────────────────────────────────────────────────
@@ -178,11 +151,6 @@ while true; do
       fi
     fi
   fi
-
-  # Ausserhalb der beiden Zweige: das Fenster soll auch dann vorn bleiben,
-  # wenn mit den AirPods gerade alles in Ordnung ist. Die beiden Probleme
-  # haben nichts miteinander zu tun.
-  hole_chrome_nach_vorn
 
   sleep "$INTERVALL"
 done
