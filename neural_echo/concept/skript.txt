@@ -4,112 +4,244 @@ Binaurale Hör-Erfahrung mit Headtracking
 ================================================================
 
 Die zugehörige Audiodatei steht in [] hinter dem Blockkopf, die
-Dauer dahinter. Pfade sind relativ zum Ordner, der unter der
-jeweiligen Szenen-Überschrift steht. Datei-Inventar am Ende.
+Dauer dahinter. Datei-Inventar am Ende.
+
+WO LIEGEN DIE DATEIEN?
+    Alle Klänge und Musikspuren liegen FLACH in static/, ohne
+    Szenen-Unterordner. Zu welcher Szene etwas gehört, sagt das
+    Präfix im Dateinamen: intro_, s1_, s2_, s3_.
+    Die gesprochenen Ansagen liegen getrennt davon in
+    static/voices/DE/ — ein Ordner pro Sprachfassung, in jedem
+    Ordner dieselben Dateinamen. Eine neu geschnittene Aufnahme
+    kopiert man einfach über die alte, im Code ändert sich nichts.
+
+ZEITEN
+    Alle Zeitangaben hier stehen als Konstanten in src/index.js,
+    TEIL 2 — dort ändern, nicht im Code weiter unten suchen. Der
+    Name der Konstante steht jeweils dabei.
+
+LAUTSTÄRKEN
+    Bei den Ambisonics-Betten ist die Zahl ein FAKTOR, kein
+    Dezibel-Wert: 1 = so laut wie aufgenommen, 2 = doppelt so
+    laut, 0.01 = ein Hundertstel (40 dB leiser).
 
 
 ----------------------------------------------------------------
-INTRO                                              static/INTRO/
+INTRO
 ----------------------------------------------------------------
 
-SPRECHERIN:  [intro_speech_(mono).wav]                   (10.3 s)
+START:  Es gibt keinen Startknopf. Erkannt wird das Aufsetzen an
+        der ersten Kopfbewegung. Danach bleibt es erst
+        4 Sekunden still (START_VERZOEGERUNG_SEK) — die Person
+        rückt den Kopfhörer zurecht —, dann wird „geradeaus"
+        gemessen und das Intro beginnt.
+
+SPRECHERIN (von vorne, 3.5 m):                        (7.2 s)
+    [voices/DE/intro_speech_(mono).wav]
     Hey, wenn du bereit bist, schließe gerne deine Augen.
     Kannst du hören, wie sich der Raum um dich herum öffnet?
+
+TIMING: 6 s nach dem ersten Wort (INTRO_SWOOSH_NACH_SEK),
+        also mitten in die Ansage hinein →
 
 SOUND:  [intro_swoosh_(ambiX).wav]                  (9.0 s, 16ch)
     [OneShot]  Ambix Swoosh als Übergang in Szene 1
 
-
-----------------------------------------------------------------
-SZENE 1 — Klänge herbeilocken                    static/SZENE_1/
-----------------------------------------------------------------
-Konzept: Soundquellen liegen links und rechts vom Hörenden und
-sollen selbstständig via Headtracking erfahren werden.
-
 SOUND:  [s1_natureLoop_(ambiX).wav]                (58.7 s, 16ch)
-    [Loop]     Nature Ambix (Wiese, Insekten) — Fade-in, dann Loop
+    [Loop]     Nature Ambix (Wiese, Insekten) — fadet zusammen
+               mit dem Swoosh über 3 s auf Faktor 0.9 ein
 
-SPRECHERIN:  [s1_speech1_(mono).wav]                     (11.4 s)
+
+----------------------------------------------------------------
+SZENE 1 — Klänge herbeilocken
+----------------------------------------------------------------
+Konzept: Zwei Klangquellen liegen links und rechts vom Hörenden
+und sollen selbstständig via Headtracking herbeigelockt werden.
+Wer eine anschaut, zieht sie näher; wer wegschaut, lässt sie
+zurückweichen. Eingefangen ist sie bei 0.3 m.
+
+TIMING: 11.8 s Ruhe nach dem Ende der Intro-Ansage
+        (PAUSE_VOR_LINKS_SEK). So lang, weil der Swoosh 9 s
+        dauert und sein Nachhall ausgehen soll →
+
+SPRECHERIN (von LINKS, 3.5 m):                       (10.5 s)
+    [voices/DE/s1_speech1_(mono).wav]
     Hey, hier bin ich. Dreh doch deinen Kopf mal nach links zu mir.
     Hörst du diesen Sound? Und spürst du, wie er langsam näher kommt?
 
 INTERAKTION:
-    Die Person dreht sich nach links und bleibt eine Weile dort,
-    bis der Sound näher kommt.
+    Sobald die Ansage zu Ende ist, taucht die erste Kugel 6 m
+    links auf (über 2 s aus der Stille, EINFADE_SEK). Die Person
+    dreht sich nach links und bleibt dort, bis der Sound
+    herangezogen ist.
 
 SOUND:  [s1_ineractiveSound1_distantLoop_(mono).wav]      (4.0 s)
         [s1_ineractiveSound1_middleLoop_(mono).wav]       (4.0 s)
         [s1_ineractiveSound1_nearLoop_(mono).wav]         (4.0 s)
-    [Loop]     Erste Klangquelle kommt näher zum Kopf
-               (drei loopende Elemente: Distant + Middle + Near)
+    [Loop]     Erste Klangquelle. Die drei Loops laufen von
+               Anfang an mit und kommen beim Näherkommen
+               nacheinander dazu: erst „distant", dann „middle",
+               ganz nah auch „near".
+    [Synth]    Dazu ein VIERTES Layer, die „Fliege": weißes
+               Rauschen, zerhackt von einem Sägezahn. Keine
+               Datei — es entsteht live in Tone.js. Es ist das
+               Peilsignal: Je näher die Kugel, desto schneller
+               flattert es (1 → 8 Hz). Beim Wegschauen wird es
+               nur träger, nie leiser.
 
-SPRECHERIN:  [s1_speech2_(mono).wav]                      (6.0 s)
+SOUND:  [s1_ineractiveSound1_success_(ambiX).wav]   (2.9 s, 16ch)
+    [OneShot]  Belohnung beim Einfangen, Faktor 0.01
+               (ERFOLG1_LAUTSTAERKE). Ambisonics, kommt also
+               von überall statt aus einer Richtung — hörbar
+               anders als alles, was man vorher suchen musste.
+               Die Kugel fadet dabei über 1.5 s aus.
+
+TIMING: 1.5 s nach dem Einfangen (PAUSE_VOR_STIMME_SEK) →
+
+SPRECHERIN (von RECHTS, 4 m):                         (7.2 s)
+    [voices/DE/s1_speech2_(mono).wav]
     Sehr gut. Jetzt dreh dich mal nach rechts.
     Da hat sich noch ein weiterer Sound versteckt.
 
 INTERAKTION:
-    Das gleiche Spiel noch einmal nach rechts,
-    bis der Sound näher kommt.
+    Das gleiche Spiel noch einmal nach rechts. Die zweite Kugel
+    taucht auf, sobald die Ansage zu Ende ist.
 
 SOUND:  [s1_ineractiveSound2_distantLoop_(mono).wav]     (40.0 s)
         [s1_ineractiveSound2_middleLoop_(mono).wav]      (40.0 s)
         [s1_ineractiveSound2_nearLoop_(mono).wav]        (40.0 s)
-    [Loop]     Zweite Klangquelle kommt näher zum Kopf
-               (drei loopende Elemente: Distant + Middle + Near)
+    [Loop]     Zweite Klangquelle, gleicher Aufbau wie oben
+               (drei Loops + Fliege)
+
+SOUND:  [s1_ineractiveSound2_success_(ambiX).wav]   (3.5 s, 16ch)
+    [OneShot]  Belohnung beim Einfangen, Faktor 0.2
+               (ERFOLG2_LAUTSTAERKE). Die zwei Erfolgsklänge
+               haben unterschiedliche Werte, weil die zwei
+               Aufnahmen unterschiedlich laut sind — nicht,
+               weil der zweite wichtiger wäre.
 
 
 ----------------------------------------------------------------
-SZENE 2 — Hausfink / Zeit verlangsamen           static/SZENE_2/
+SZENE 2 — Hausfink / Zeit verlangsamen
 ----------------------------------------------------------------
-Konzept: Ein Vogelklang wird durch räumliche Kopfbewegung von
-links nach rechts in der Zeit verlangsamt.
+Konzept: Ein Vogelklang wird durch die Kopfdrehung von links
+nach rechts in der Zeit verlangsamt (100 % → 10 % Tempo).
 
-SPRECHERIN:  [s2_speech1_(mono).wav]                     (39.1 s)
+Die Ansage besteht aus VIER Teilen. Die Schnitte sind nicht
+willkürlich:
+    Teil 1 → 2   Ab „Hier links hörst du…" spricht die Stimme
+                 VON LINKS, aus der Richtung, aus der gleich der
+                 Fink zwitschert.
+    Teil 2 → 3   Dazwischen liegt die Pause, in der der Fink
+                 zwei Mal ruft. So lang schneidet man keine
+                 Stille in eine Sprachaufnahme.
+    Teil 4       Kommt erst nach der Spielzeit, siehe unten.
+
+TIMING: 1.5 s nach dem Einfangen der zweiten Kugel, dann noch
+        2 s Ruhe (S2_STIMME_NACH_SEK), damit die gefangene Kugel
+        ausklingen kann →
+
+SPRECHERIN, TEIL 1 (von vorne, 3.5 m):               (23.1 s)
+    [voices/DE/s2_speech1_(mono).wav]
     Jetzt bist du ja schon Profi im Klänge herbeilocken.
     Aber mit deinen neuen Ohren hast du noch eine weitere Fähigkeit.
     Wusstest du, dass andere Lebewesen Klang in ganz anderen
     Geschwindigkeiten wahrnehmen können?
     Nehmen wir zum Beispiel mal den Hausfink. Der kann Details in
     seinem Gesang fünfmal genauer wahrnehmen als wir Menschen.
+
+SPRECHERIN, TEIL 2 (von LINKS, 6 m):                  (4.0 s)
+    [voices/DE/s2_speech2_(mono).wav]
     Hier links hörst du einen kurzen Ausschnitt vom Gesang des
     Hausfinken.
+
+SOUND:  [s2_fink_(mono).wav]                              (1.9 s)
+    [OneShot]  Vorgeschmack, 2 m links, im Originaltempo. Er
+               ruft ZWEI Mal — 0.6 s und 3.0 s nach dem Ende von
+               Teil 2 (FINK_VORSCHAU_NACH_SEK und + _PAUSE_SEK).
+               Einmal wäre zu wenig, um sich eine Melodie zu
+               merken, und genau darum geht es gleich.
+
+TIMING: 6 s nach dem Ende von Teil 2 (S2_STIMME3_NACH_SEK) →
+
+SPRECHERIN, TEIL 3 (von LINKS, 6 m):                  (9.6 s)
+    [voices/DE/s2_speech3_(mono).wav]
     Um dessen Komplexität nun besser wahrnehmen zu können, dreh
     deinen Kopf langsam nach rechts, um die Zeit zu verlangsamen.
 
+TIMING: 8.95 s nach dem START von Teil 3 (S2_SWOOSH_NACH_SEK),
+        also in dessen Schlusspause — der Raum wechselt erst,
+        wenn ausgesprochen ist →
+
 SOUND:  [s2_swoosh_(ambiX).wav]                     (8.0 s, 16ch)
-    [OneShot]  Ambix Swoosh als Übergang
+    [OneShot]  Ambix Swoosh als Übergang. Gleichzeitig fadet
+               s1_natureLoop über 4 s weg.
 
 SOUND:  [s2_natureLoop_(ambiX).wav]                (58.7 s, 16ch)
-    [Loop]     Dynamische Ambix-Naturaufnahme, die abhängig von der
-               Kopfbewegung ihre Abspielgeschwindigkeit ändert
-
-SOUND:  [s2_fink_(mono).wav]                              (1.9 s)
-    [Loop]     Dynamisches Fink-Zwitschern (Mono), das abhängig von
-               der Kopfbewegung die Abspielgeschwindigkeit ändert
+    [Loop]     Dynamische Ambix-Naturaufnahme, die abhängig von
+               der Kopfdrehung ihre Abspielgeschwindigkeit
+               ändert. Fadet über 4 s auf Faktor 2.54 ein —
+               deutlich lauter als die Wiese in Szene 1, weil
+               sie hier das eigentliche Klangereignis ist und
+               nicht nur Hintergrund.
 
 SOUND:  [s2_lowNatureFxLoop_(ambiX).wav]           (39.9 s, 16ch)
-    [Loop]     Nicht dynamischer Ambience-Loop, der leise im
-               Hintergrund zusätzlich zum Nature-Loop läuft und
-               etwas FX-Atmosphäre erzeugt
+    [Loop]     Nicht dynamischer Ambience-Loop, Faktor 0.45. Er
+               bleibt bewusst im Originaltempo und liegt leise
+               unter dem Nature-Loop, damit der Raum bei starker
+               Verlangsamung nicht einschläft.
 
-TIMING: Nach circa 15 Sekunden →
+INTERAKTION:
+    Sobald Teil 3 zu Ende gesprochen ist, setzt der echte Fink
+    ein (2 m vor den Augen) und der Kopf wird zum Regler:
+    ganz links = normales Tempo, ganz rechts = 10 %. Der Ruf
+    liegt dort gut drei Oktaven tiefer.
 
-SPRECHERIN (Ende Szene 2):  [s2_speech2_(mono).wav]       (6.8 s)
+SOUND:  [s2_fink_(mono).wav]                              (1.9 s)
+    [Loop]     Dynamisches Fink-Zwitschern (Mono), verlangsamt
+               gemeinsam mit s2_natureLoop
+
+TIMING: 25 s freies Ausprobieren (FINK_SPIELZEIT_SEK) →
+
+SPRECHERIN, TEIL 4 (wandert mit dem Kopf mit):        (7.8 s)
+    [voices/DE/s2_speech4_(mono).wav]
     Hör zum Schluss noch mal genauer hin. Merkst du, wie in den
     zwei Tönen eine ganze Melodie steckt?
 
+    Diese eine Ansage folgt der Kopfdrehung, statt an einer
+    festen Stelle im Raum zu stehen: Beim Zeitlupe-Spielen ist
+    man weit weggedreht, und der Satz käme sonst von hinten.
+    Der Fink verstummt solange (Fade 1.5 s) und läuft stumm
+    weiter, damit er danach im Takt zurückkommt statt neu
+    anzufangen.
+
 
 ----------------------------------------------------------------
-SZENE 3 — Musikalischer Raum                     static/SZENE_3/
+SZENE 3 — Musikalischer Raum
 ----------------------------------------------------------------
 Konzept: Musikalische Events werden zu einer bestehenden
 Soundscape aktiviert und deaktiviert, je nachdem, wo die
 Hörposition hinschaut.
 
-TIMING: Circa 5 Sekunden nach der Ansprache
-        „… eine ganze Melodie steckt?" →
+TIMING: 15 s nach „…eine ganze Melodie steckt?"
+        (FINK_ENDE_PAUSE_SEK). Lang genug, um die Melodie im
+        Fink wirklich zu suchen →
 
-SPRECHERIN:  [s3_speech1_(mono).wav]                     (17.3 s)
+ÜBERGANG:
+    Fink und die beiden Nature-Betten faden über 5 s weg
+    (SZENE3_FADE_SEK). Die Basis-Fläche fadet über 11 s ein,
+    also länger als der Rest der Überblendung: Sie soll nicht
+    „anfangen", sondern unbemerkt schon da sein.
+
+SOUND:  [s3_musik_basis.wav]                            (106.0 s)
+    [Loop]     String-Ambient-Basis, fadet auf -24 dB ein
+
+TIMING: 4 s nach dem Beginn der Überblendung
+        (S3_STIMME_NACH_SEK) — der ruhigste Moment, Natur schon
+        fast weg, Basis fast da →
+
+SPRECHERIN (von vorne, 3.5 m):                       (18.0 s)
+    [voices/DE/s3_speech1_(mono).wav]
     Deine neuen Ohren sind jetzt ganz schön gut trainiert.
     Zum Abschluss darfst du noch einen musikalischen Raum erkunden.
     Dreh weiter deinen Kopf und höre, was für Klänge sich
@@ -117,54 +249,72 @@ SPRECHERIN:  [s3_speech1_(mono).wav]                     (17.3 s)
     Wenn du genug gehört hast, darfst du deine Kopfhörer wieder
     absetzen.
 
-SOUND:  [s3_musik_basis.wav]                            (106.0 s)
-    [Loop]     String-Ambient-Basis (Fade-in, dann Loop)
+INTERAKTION:
+    Erst wenn diese Ansage fertig gesprochen ist, wird der Blick
+    zur Taschenlampe. Die Instrumente laufen von Anfang an mit,
+    sind aber stumm — sonst weckt eine zufällige Kopfdrehung
+    mitten im Übergang ein Instrument.
+    Anschauen fadet über 2.5 s ein (ANSCHAU_SEK), Wegschauen
+    über 10 s wieder aus (AUSKLING_SEK). Das Ausklingen ist
+    bewusst viel länger, damit man mehrere Instrumente
+    gleichzeitig zum Klingen bringen kann.
 
 SOUND:  [s3_musik_cello.wav]                            (114.0 s)
         [s3_musik_gitarre.wav]                          (106.0 s)
         [s3_musik_klavier.wav]                          (106.0 s)
         [s3_musik_floete.wav]                           (106.0 s)
         [s3_musik_perkussion.wav]                       (107.3 s)
-    [Loop]     Dynamisch je Kopfposition:
-                   - Cello       180 Grad rechts
-                   - Gitarre      90 Grad rechts
-                   - Klavier       0 Grad, über dem Kopf platziert
-                   - Flöte        90 Grad links
-                   - Perkussion  180 Grad links
+    [Loop]     Dynamisch je Kopfposition. Die Platzierung ist
+               3D: azimut = links/rechts, höhe = oben/unten,
+               beam = Breite des Kegels, in dem das Instrument
+               angeht. Abstand 6 m.
+
+                   Instrument   azimut   höhe   beam
+                   Cello         100 R      0     25
+                   Gitarre        45 R      0     25
+                   Klavier         0       60     40
+                   Flöte          45 L      0     25
+                   Perkussion    100 L      0     25
+
+               Zwei Instrumente stehen mit 100 Grad knapp HINTER
+               der Ohrachse. Das ist Absicht: Vorne im Blickfeld
+               lägen sie so dicht beieinander, dass man beim
+               Umschauen mehrere gleichzeitig erwischt.
+               Das Klavier hängt auf 60 statt 90 Grad Höhe —
+               niemand legt den Kopf senkrecht nach oben, ein
+               deutliches Nicken soll reichen.
+
+ENDE:   Es gibt kein Outro. „Wenn du genug gehört hast, darfst
+        du deine Kopfhörer wieder absetzen" ist schon das Ende
+        von s3_speech1. Die Szene läuft weiter, bis der
+        Kopfhörer wirklich abgelegt wird — dann setzt sich alles
+        für den nächsten Besucher zurück.
 
 
 ================================================================
-DATEI-INVENTAR static/ (Stand 29.07.2026)
+DATEI-INVENTAR (Stand 12.08.2026)
 ================================================================
-Alle Dateien 48 kHz. „(ambiX)" = 16 Kanäle (Ambisonics),
-„(mono)" = 1 Kanal.
+Alle Dateien 48 kHz. „(ambiX)" = 16 Kanäle (Ambisonics).
+Dauern gemessen, nicht aus dem Schnittplan übernommen.
 
-INTRO/
-    intro_speech_(mono).wav                       10.3 s
+static/  (flach, keine Unterordner)
     intro_swoosh_(ambiX).wav                       9.0 s   16ch
 
-SZENE_1/
     s1_natureLoop_(ambiX).wav                     58.7 s   16ch
-    s1_speech1_(mono).wav                         11.4 s
-    s1_speech2_(mono).wav                          6.0 s
-    s1_speech3_(mono).wav                          7.6 s
     s1_ineractiveSound1_distantLoop_(mono).wav     4.0 s
     s1_ineractiveSound1_middleLoop_(mono).wav      4.0 s
     s1_ineractiveSound1_nearLoop_(mono).wav        4.0 s
+    s1_ineractiveSound1_success_(ambiX).wav        2.9 s   16ch
     s1_ineractiveSound2_distantLoop_(mono).wav    40.0 s
     s1_ineractiveSound2_middleLoop_(mono).wav     40.0 s
     s1_ineractiveSound2_nearLoop_(mono).wav       40.0 s
+    s1_ineractiveSound2_success_(ambiX).wav        3.5 s   16ch
 
-SZENE_2/
     s2_swoosh_(ambiX).wav                          8.0 s   16ch
     s2_natureLoop_(ambiX).wav                     58.7 s   16ch
     s2_lowNatureFxLoop_(ambiX).wav                39.9 s   16ch
     s2_fink_(mono).wav                             1.9 s
-    s2_speech1_(mono).wav                         39.1 s
-    s2_speech2_(mono).wav                          6.8 s
 
-SZENE_3/
-    s3_speech1_(mono).wav                         17.3 s
     s3_musik_basis.wav                           106.0 s
     s3_musik_cello.wav                           114.0 s
     s3_musik_gitarre.wav                         106.0 s
@@ -172,15 +322,44 @@ SZENE_3/
     s3_musik_floete.wav                          106.0 s
     s3_musik_perkussion.wav                      107.3 s
 
+static/voices/DE/
+    intro_speech_(mono).wav                        7.2 s
+    s1_speech1_(mono).wav                         10.5 s
+    s1_speech2_(mono).wav                          7.2 s
+    s2_speech1_(mono).wav                         23.1 s
+    s2_speech2_(mono).wav                          4.0 s
+    s2_speech3_(mono).wav                          9.6 s
+    s2_speech4_(mono).wav                          7.8 s
+    s3_speech1_(mono).wav                         18.0 s
+
 ANMERKUNGEN
-    - Kein Outro vorhanden; das alte voice_outro.wav liegt noch in
-      static/_old/.
+    - Die Sprachfassung wird an EINER Stelle umgestellt: der
+      Konstante STIMMEN_ORDNER in src/index.js, TEIL 1. Neben
+      DE/ liegen weitere Aufnahmen (Anna_ENG, Anna_GER,
+      Mathis_GER, Till_) — das sind alternative Takes, sie
+      werden nicht geladen. Für eine zweite Sprachfassung
+      müssten sie erst nach dem Muster von DE/ benannt werden;
+      teilweise fehlen dort auch s2_speech3/4.
+    - Nicht geladen werden außerdem: static/_old/ (der alte
+      Prototyp-Satz, inklusive voice_outro.wav) und
+      s3_speech2_(mono)_Vorschlag von Mathis.wav in voices/DE/.
+    - Kein Outro. Der Schlusssatz steckt in s3_speech1.
+    - s1_speech3 („Jetzt bist du ja schon Profi…") gibt es nicht
+      mehr als eigene Datei — der Satz steht jetzt vorne in
+      s2_speech1.
+    - Die vierte Klangschicht jeder Kugel („Fliege") hat KEINE
+      Datei, sie wird in Tone.js erzeugt (src/index.js, TEIL 6).
     - Szene 2 hat zwei Ambix-Betten übereinander: s2_natureLoop
-      (dynamisch, folgt der Kopfbewegung) und s2_lowNatureFxLoop
-      (statisch, leise darunter).
+      (dynamisch, folgt der Kopfdrehung) und s2_lowNatureFxLoop
+      (statisch, leise darunter). Verlangsamt wird IMMER nur
+      s2_natureLoop.
     - Szene 1: die beiden Klangquellen sind unterschiedlich lang
       (Sound1 = 4 s Loops, Sound2 = 40 s Loops).
     - Tippfehler in den Dateinamen absichtlich so belassen, wie
       geliefert: „ineractiveSound" (statt interactive).
-    - Klammern in den Dateinamen müssen im Code URL-kodiert werden
-      (( → %28, ) → %29).
+    - Klammern in den Dateinamen brauchen KEINE URL-Kodierung —
+      der Vite-Server liefert '/s2_fink_(mono).wav' direkt aus.
+    - „(mono)" im Namen heißt „nicht ambisonic", nicht zwingend
+      einkanalig: Ein Teil dieser Dateien liegt technisch
+      zweikanalig vor. Für die Wiedergabe macht das keinen
+      Unterschied.

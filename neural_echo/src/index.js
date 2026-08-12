@@ -394,7 +394,8 @@ const STIMME_ABSTAND_RECHTS = 4;   // Meter: "Sehr gut…" von rechts
 const INTRO_SWOOSH_NACH_SEK = 6;   // Swoosh kommt mitten in die Intro-Stimme.
                                    // Gemessen ab dem ersten Wort, nicht ab
                                    // der Uhr in der Anzeige – die läuft schon
-                                   // 2 Sekunden früher los (siehe TEIL 9).
+                                   // START_VERZOEGERUNG_SEK früher los
+                                   // (siehe TEIL 9).
 const S2_SWOOSH_NACH_SEK    = 8.95; // In Szene 2 wechselt der Raum ERST, wenn
                                     // die ganze Ansage gesprochen ist. Sie ist
                                     // ja selbst die Überleitung: Sie beginnt

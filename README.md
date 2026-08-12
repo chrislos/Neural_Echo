@@ -201,6 +201,19 @@ Ein LaunchAgent unter `~/Library/LaunchAgents/com.neuralecho.start.plist`
 startet `start.sh` beim Login und wieder neu, falls es abstürzt. Er liegt
 absichtlich nicht im Repo, weil absolute Pfade darin stehen. So sieht er aus:
 
+**Das Fenster bleibt sichtbar:** launchd startet Scripte unsichtbar im
+Hintergrund. Deshalb merkt `start.sh` selbst, dass es ohne Terminal läuft
+(kein tty), und startet sich dann noch einmal in einem echten
+Terminal-Fenster – so kann man sich per Bildschirmfreigabe draufschalten und
+die Ausgabe live mitlesen. Das Chrome-Kiosk-Fenster liegt im Vollbild darüber,
+im Ausstellungsbetrieb sieht man davon also nichts.
+
+Der unsichtbare erste Aufruf bleibt dabei am Leben, solange das Fenster läuft,
+und reicht dessen Exit-Code an launchd weiter – nur so greift der Neustart bei
+einem Absturz. Klappt das Öffnen nicht (z.B. weil die Automation-Berechtigung
+für Terminal fehlt – macOS fragt beim ersten Mal nach), läuft die Installation
+wie früher unsichtbar weiter.
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -287,6 +300,10 @@ dem Repo ausgeschlossen – reine Betriebsdaten. Jede Watchdog-Meldung hat eine
 Uhrzeit, damit man nach der Ausstellung nachvollziehen kann, wann die
 Verbindung wie oft abgerissen ist.
 
+Läuft alles im sichtbaren Terminal-Fenster (siehe oben), schreibt `start.sh`
+seine Ausgabe zusätzlich per `tee` in `start.log` – im Fenster mitlesen und
+hinterher nachlesen geht also beides.
+
 ---
 
 ## Wenn etwas nicht geht
@@ -301,6 +318,7 @@ Verbindung wie oft abgerissen ist.
 | Ton kommt aus den Mac-Lautsprechern | AirPods waren beim Start noch nicht als Ausgang bereit | Der Watchdog fängt das normalerweise ab; sonst Ausgabegerät von Hand umstellen |
 | Nach einer Weile reagiert nichts mehr | Chrome hat gedrosselt (Fenster galt als verdeckt) | Prüfen, ob die `--disable-…`-Flags in `start.sh` noch da sind |
 | Zeitlupe in Szene 2 hängt am Anschlag | Aussetzer in der Verbindung beim Drehen | Kopf zurückdrehen – `YAW_GRENZE` fängt das ab; sonst `r` |
+| Beim Booten kommt kein Terminal-Fenster | Terminal darf nicht per Automation gesteuert werden | *Systemeinstellungen → Datenschutz → Automation* freigeben; die Installation läuft solange unsichtbar weiter (Ausgabe in `start.log`) |
 
 ---
 
