@@ -73,8 +73,7 @@ const DATEIEN = {
   s1Stimme1: '/s1_speech1_(mono).wav', // "…dreh deinen Kopf nach links"
   s1Stimme2: '/s1_speech2_(mono).wav', // "…jetzt nach rechts"
   // s1_speech3 ("Jetzt bist du ja schon Profi…") gibt es nicht mehr als eigene
-  // Datei – der Satz steckt jetzt vorne in s2_speech1. Die alte Datei liegt
-  // noch in static/, wird aber nirgends mehr geladen.
+  // Datei – der Satz steckt jetzt vorne in s2_speech1.
 
   // Jede Klangkugel besteht aus drei Loops, die beim Näherkommen nacheinander
   // dazukommen: erst nur "fern", dann "mittel", ganz nah dann auch "nah".
@@ -1531,9 +1530,7 @@ function tick() {
       kugel.tempo = KUGEL_TEMPO_WEIT;
     }
 
-    // Angekommen? Dann ist sie eingefangen. (Einen extra Erfolgs-Ton gibt es
-    // nicht – die Belohnung ist der Nah-Loop, den man kurz vorher in voller
-    // Lautstärke hört.)
+    // Angekommen? Dann ist sie eingefangen.
     //
     // Sie wird NICHT hart abgeschaltet, sondern fadet über AUSFADE_SEK aus:
     // ein abruptes Abreißen klingt nach Fehler, ein Ausklingen nach "gefangen".
