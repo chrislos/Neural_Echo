@@ -169,9 +169,11 @@ SPRECHERIN, TEIL 3 (von LINKS, 6 m):                  (9.6 s)
     Um dessen Komplexität nun besser wahrnehmen zu können, dreh
     deinen Kopf langsam nach rechts, um die Zeit zu verlangsamen.
 
-TIMING: 8.95 s nach dem START von Teil 3 (S2_SWOOSH_NACH_SEK),
+TIMING: 0.7 s vor dem ENDE von Teil 3 (S2_SWOOSH_VOR_ENDE_SEK),
         also in dessen Schlusspause — der Raum wechselt erst,
-        wenn ausgesprochen ist →
+        wenn ausgesprochen ist. Vom Ende gerechnet, damit die
+        Stelle auch in der englischen Fassung sitzt (dort ist
+        die Aufnahme 7.1 statt 9.6 s lang) →
 
 SOUND:  [s2_swoosh_(ambiX).wav]                     (8.0 s, 16ch)
     [OneShot]  Ambix Swoosh als Übergang. Gleichzeitig fadet
@@ -322,24 +324,33 @@ static/  (flach, keine Unterordner)
     s3_musik_floete.wav                          106.0 s
     s3_musik_perkussion.wav                      107.3 s
 
-static/voices/DE/
-    intro_speech_(mono).wav                        7.2 s
-    s1_speech1_(mono).wav                         10.5 s
-    s1_speech2_(mono).wav                          7.2 s
-    s2_speech1_(mono).wav                         23.1 s
-    s2_speech2_(mono).wav                          4.0 s
-    s2_speech3_(mono).wav                          9.6 s
-    s2_speech4_(mono).wav                          7.8 s
-    s3_speech1_(mono).wav                         18.0 s
+static/voices/DE/  und  static/voices/EN/
+                                                    DE      EN
+    intro_speech_(mono).wav                        7.2 s   7.4 s
+    s1_speech1_(mono).wav                         10.5 s   9.9 s
+    s1_speech2_(mono).wav                          7.2 s   6.1 s
+    s2_speech1_(mono).wav                         23.1 s  24.8 s
+    s2_speech2_(mono).wav                          4.0 s   5.0 s
+    s2_speech3_(mono).wav                          9.6 s   7.1 s
+    s2_speech4_(mono).wav                          7.8 s   9.7 s
+    s3_speech1_(mono).wav                         18.0 s  18.7 s
 
 ANMERKUNGEN
-    - Die Sprachfassung wird an EINER Stelle umgestellt: der
-      Konstante STIMMEN_ORDNER in src/index.js, TEIL 1. Neben
-      DE/ liegen weitere Aufnahmen (Anna_ENG, Anna_GER,
-      Mathis_GER, Till_) — das sind alternative Takes, sie
-      werden nicht geladen. Für eine zweite Sprachfassung
-      müssten sie erst nach dem Muster von DE/ benannt werden;
-      teilweise fehlen dort auch s2_speech3/4.
+    - Es gibt zwei Sprachfassungen mit IDENTISCHEN Dateinamen.
+      Welche läuft, sagt die Adresszeile: ?lang=EN (in der
+      Ausstellung von start.sh aus standort.conf gesetzt). Was
+      sich pro Sprache unterscheidet, steht gesammelt in der
+      Tabelle SPRACHEN in src/index.js, TEIL 1 — mehr als der
+      Ordner, drei Pegel und der Hinweistext ist es nicht.
+    - Die Zeiten oben sind KEINE Vorgaben für den Ablauf: Er
+      hängt an den Enden der Dateien (.onstop), nicht an der
+      Uhr. Eine längere Aufnahme verschiebt die Szene von
+      allein. Nur die zwei Swoosh-Einsätze zählen in eine
+      Sprachdatei hinein, und der von Szene 2 rechnet deshalb
+      vom Dateiende.
+    - Neben DE/ und EN/ liegen weitere Aufnahmen (Anna_ENG,
+      Anna_GER, Mathis_GER, Till_) — alternative Takes, sie
+      werden nicht geladen. Ihre Dateinamen weichen ab.
     - Nicht geladen werden außerdem: static/_old/ (der alte
       Prototyp-Satz, inklusive voice_outro.wav) und
       s3_speech2_(mono)_Vorschlag von Mathis.wav in voices/DE/.

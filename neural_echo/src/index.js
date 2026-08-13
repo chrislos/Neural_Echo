@@ -24,7 +24,7 @@
 //
 //  WIE IST DIESE DATEI AUFGEBAUT? (von oben nach unten lesbar)
 //
-//    TEIL 1   Die Audio-Dateien
+//    TEIL 1   Die Audio-Dateien und die Sprachfassung (Deutsch oder Englisch)
 //    TEIL 2   Einstellungen – alle Zahlen, an denen man drehen kann
 //    TEIL 3   Variablen, die sich während der Experience verändern
 //    TEIL 4   Werkzeugkasten – die wenigen Funktionen, die überall gebraucht werden
@@ -52,8 +52,8 @@ import { erstelleKopfSzene } from './3dhead.js';
 // ═══════════════════════════════════════════════════════════════════════════
 //  TEIL 1 – DIE AUDIO-DATEIEN
 //  Alle Klänge und Musikspuren liegen flach in static/, die gesprochenen
-//  Ansagen dagegen in static/voices/DE/ – ein Ordner pro Sprache, damit man
-//  die Sprachfassung als Ganzes austauschen kann.
+//  Ansagen dagegen in static/voices/DE/ bzw. static/voices/EN/ – ein Ordner
+//  pro Sprache, damit man die Sprachfassung als Ganzes austauschen kann.
 //  Der Server bietet static/ unter '/' an: aus static/s2_fink_(mono).wav wird
 //  '/s2_fink_(mono).wav' und aus static/voices/DE/intro_speech_(mono).wav
 //  wird '/voices/DE/intro_speech_(mono).wav'.
@@ -68,18 +68,76 @@ import { erstelleKopfSzene } from './3dhead.js';
 //    "(ambiX)" = 16 Kanäle  → Ambisonics, eine Rundum-Aufnahme (siehe TEIL 4)
 // ═══════════════════════════════════════════════════════════════════════════
 
-// Alle Sprachaufnahmen kommen aus diesem Ordner. Für eine andere Sprache
-// tauscht man nur diese eine Zeile (z. B. '/voices/EN/'), die Dateinamen
-// darunter bleiben in jeder Sprachfassung gleich.
-const STIMMEN_ORDNER = '/voices/DE/';
+// ─── Welche Sprachfassung läuft hier? ───
+// Im Futurium stehen ZWEI Rechner nebeneinander: einer spielt dauerhaft die
+// deutsche Fassung, der andere dauerhaft die englische. Welcher welcher ist,
+// entscheidet nicht diese Datei, sondern die Adresszeile – start.sh hängt beim
+// Start "?lang=EN" an, und was dort steht, liest jeder Rechner aus seiner
+// eigenen standort.conf (siehe README). So laufen beide Stationen auf exakt
+// demselben Code, und niemand muss vor jedem Ausstellungstag eine Zeile
+// umstellen und hinterher wieder zurück.
+//
+// Ohne Parameter läuft Deutsch. Zum Ausprobieren am eigenen Rechner reicht
+// http://localhost:3000/?lang=EN in der Adresszeile.
+//
+// Was sich zwischen den Sprachfassungen unterscheidet, steht HIER – und nur
+// hier. Es ist erstaunlich wenig: der Ordner, drei Lautstärke-Korrekturen und
+// der eine Satz, der auf dem Bildschirm steht.
+//
+// Warum nicht mehr? Weil der Ablauf in TEIL 7 fast überall am ENDE einer
+// Sprachdatei hängt (.onstop) und nicht an der Uhr. Ist der englische Satz
+// zwei Sekunden länger, wartet die nächste Szene eben zwei Sekunden länger –
+// ganz von allein. Deshalb gibt es auch kein zweites index.js: Wer am
+// Sounddesign schraubt, ändert es für beide Fassungen gleichzeitig.
+//
+// Die Pegel sind DEZIBEL und gehören zur jeweiligen Aufnahme, nicht zur Szene:
+// Eine andere Sprecherin ist anders eingesprochen. Wenn eine englische Ansage
+// zu leise gegen die Natur steht, ändert man sie hier – die deutsche bleibt
+// davon unberührt. Warum es überhaupt Korrekturen braucht, steht in TEIL 6.
+const SPRACHEN = {
+  DE: {
+    ordner:       '/voices/DE/',
+    pegelS1Links: 1, // "Hey, hier bin ich" – kommt von der Seite
+    pegelS2Teil3: 4, // "Um dessen Komplexität…" – spricht aus 6 Metern
+    pegelS2Ende:  6, // "Hör zum Schluss…" – liegt über der ganzen Szene
+    hinweis:      'setz die Kopfhörer auf … · h = simulieren · r = reset · 1/2 bzw. e = Erfolgsklänge',
+  },
+  EN: {
+    // Die Pegel starten mit denselben Werten wie in Deutsch. Beim ersten
+    // Durchhören der englischen Fassung werden sie nachgezogen.
+    ordner:       '/voices/EN/',
+    pegelS1Links: 1,
+    pegelS2Teil3: 4,
+    pegelS2Ende:  6,
+    hinweis:      'put on the headphones … · h = simulate · r = reset · 1/2 or e = success sounds',
+  },
+};
+
+let SPRACHE = (new URLSearchParams(location.search).get('lang') || 'DE').toUpperCase();
+
+// Ein Tippfehler in der Adresszeile darf die Ausstellung nicht lahmlegen:
+// Steht dort etwas Unbekanntes, läuft eben die deutsche Fassung. Wir setzen
+// SPRACHE dabei mit zurück, damit die Anzeige oben rechts (TEIL 8) nicht "FR"
+// behauptet, während in Wirklichkeit Deutsch läuft.
+if (!SPRACHEN[SPRACHE]) {
+  console.warn('Unbekannte Sprache "' + SPRACHE + '" – spiele Deutsch.');
+  SPRACHE = 'DE';
+}
+
+const sprache = SPRACHEN[SPRACHE];
+console.log('Sprachfassung:', SPRACHE, '→', sprache.ordner);
+
+// Damit die Seite auch nach außen sagt, welche Sprache sie spricht (in
+// index.html steht fest lang="de").
+document.documentElement.lang = SPRACHE.toLowerCase();
 
 const DATEIEN = {
-  introStimme: STIMMEN_ORDNER + 'intro_speech_(mono).wav',
+  introStimme: sprache.ordner + 'intro_speech_(mono).wav',
   introSwoosh: '/intro_swoosh_(ambiX).wav',
 
   s1Natur:   '/s1_natureLoop_(ambiX).wav',
-  s1Stimme1: STIMMEN_ORDNER + 's1_speech1_(mono).wav', // "…dreh deinen Kopf nach links"
-  s1Stimme2: STIMMEN_ORDNER + 's1_speech2_(mono).wav', // "…jetzt nach rechts"
+  s1Stimme1: sprache.ordner + 's1_speech1_(mono).wav', // "…dreh deinen Kopf nach links"
+  s1Stimme2: sprache.ordner + 's1_speech2_(mono).wav', // "…jetzt nach rechts"
   // s1_speech3 ("Jetzt bist du ja schon Profi…") gibt es nicht mehr als eigene
   // Datei – der Satz steckt jetzt vorne in s2_speech1.
 
@@ -115,12 +173,12 @@ const DATEIEN = {
   //          das dauert länger als jede Pause, die man in eine Aufnahme
   //          schneiden würde. Als zwei Dateien können wir uns so viel Zeit
   //          lassen, wie der Vogel braucht, und danach weitersprechen.
-  s2Stimme1: STIMMEN_ORDNER + 's2_speech1_(mono).wav', // "Jetzt bist du ja schon Profi… / Wusstest du…"
-  s2Stimme2: STIMMEN_ORDNER + 's2_speech2_(mono).wav', // "Hier links hörst du…" – kommt VON LINKS
-  s2Stimme3: STIMMEN_ORDNER + 's2_speech3_(mono).wav', // "Um dessen Komplexität…" – auch von links
-  s2Stimme4: STIMMEN_ORDNER + 's2_speech4_(mono).wav', // "Hör zum Schluss noch mal…"
+  s2Stimme1: sprache.ordner + 's2_speech1_(mono).wav', // "Jetzt bist du ja schon Profi… / Wusstest du…"
+  s2Stimme2: sprache.ordner + 's2_speech2_(mono).wav', // "Hier links hörst du…" – kommt VON LINKS
+  s2Stimme3: sprache.ordner + 's2_speech3_(mono).wav', // "Um dessen Komplexität…" – auch von links
+  s2Stimme4: sprache.ordner + 's2_speech4_(mono).wav', // "Hör zum Schluss noch mal…"
 
-  s3Stimme1:    STIMMEN_ORDNER + 's3_speech1_(mono).wav',
+  s3Stimme1:    sprache.ordner + 's3_speech1_(mono).wav',
   s3Basis:      '/s3_musik_basis.wav',
   s3Cello:      '/s3_musik_cello.wav',
   s3Gitarre:    '/s3_musik_gitarre.wav',
@@ -396,7 +454,14 @@ const INTRO_SWOOSH_NACH_SEK = 6;   // Swoosh kommt mitten in die Intro-Stimme.
                                    // der Uhr in der Anzeige – die läuft schon
                                    // START_VERZOEGERUNG_SEK früher los
                                    // (siehe TEIL 9).
-const S2_SWOOSH_NACH_SEK    = 8.95; // In Szene 2 wechselt der Raum ERST, wenn
+                                   //
+                                   // Diese Zahl zählt IN eine Sprachdatei
+                                   // hinein und müsste deshalb eigentlich pro
+                                   // Sprache stimmen. Sie darf es trotzdem
+                                   // fest: Das Intro dauert auf Deutsch 7,2
+                                   // und auf Englisch 7,4 Sekunden – bei zwei
+                                   // Zehntel Unterschied lohnt keine Tabelle.
+const S2_SWOOSH_VOR_ENDE_SEK = 0.7; // In Szene 2 wechselt der Raum ERST, wenn
                                     // die ganze Ansage gesprochen ist. Sie ist
                                     // ja selbst die Überleitung: Sie beginnt
                                     // noch in Szene 1 ("Jetzt bist du ja schon
@@ -405,10 +470,21 @@ const S2_SWOOSH_NACH_SEK    = 8.95; // In Szene 2 wechselt der Raum ERST, wenn
                                     // der Schlusspause ein, kurz bevor der Fink
                                     // zu hören ist.
                                     //
-                                    // ACHTUNG, gezählt ab dem Start von
-                                    // s2_speech3 – dem letzten der vier Teile
-                                    // vor dem Fink. Das letzte Wort fällt dort
-                                    // auf etwa 9,1 s.
+                                    // ACHTUNG, hier wird VOM ENDE der Datei
+                                    // gezählt, nicht von ihrem Anfang: 0,7
+                                    // Sekunden bevor s2_speech3 zu Ende ist.
+                                    //
+                                    // Warum herum? Früher stand hier "8,95 s
+                                    // nach dem Start", passend zur deutschen
+                                    // Aufnahme (9,65 s lang). Die englische ist
+                                    // nur 7,07 s lang – der Swoosh wäre also
+                                    // fast zwei Sekunden NACH dem Ende der
+                                    // Ansage gekommen, und weil der Fink genau
+                                    // an diesem Ende hängt, hätte man erst den
+                                    // Vogel gehört und dann den Raumwechsel.
+                                    // Vom Ende gezählt sitzt er in JEDER
+                                    // Sprache an derselben Stelle: in der
+                                    // Schlusspause.
 // Ruhe, bevor "Jetzt bist du ja schon Profi…" einsetzt. Die zwei Sekunden
 // geben der eingefangenen Kugel Zeit auszuklingen, bevor gesprochen wird.
 //
@@ -474,7 +550,9 @@ const KALIBRIER_FENSTER_SEK  = 2; // über so viele Sekunden wird die Nullstellu
 // Szene immer innerhalb einer halben Umdrehung zurück, egal was vorher schiefging.
 const YAW_GRENZE = Math.PI; // 180 Grad nach jeder Seite
 
-const HINWEIS_TEXT = 'setz die Kopfhörer auf … · h = simulieren · r = reset · 1/2 bzw. e = Erfolgsklänge';
+// Der einzige Text, den ein Besucher zu sehen bekommt – also übersetzt er sich
+// mit. Er steht in der Sprachtabelle in TEIL 1, nicht hier.
+const HINWEIS_TEXT = sprache.hinweis;
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -966,11 +1044,17 @@ async function initAudio() {
   stimme.s2Ende   = new Tone.Player(DATEIEN.s2Stimme4).connect(stimmQuelle.input);
   stimme.s3       = new Tone.Player(DATEIEN.s3Stimme1).connect(stimmQuelle.input);
 
+  // Drei Ansagen brauchen eine Korrektur nach oben. Die Zahlen stehen nicht
+  // hier, sondern in der Sprachtabelle in TEIL 1: Sie hängen an der jeweiligen
+  // AUFNAHME, und die englische Sprecherin ist anders eingesprochen als die
+  // deutsche. Der Grund für die Korrektur ist aber in beiden Sprachen derselbe
+  // – deshalb steht er hier und nicht dort.
+  //
   // Die Ansage von links stand früher näher am Ohr als die anderen und war
   // deshalb 3 dB abgesenkt. Seit alle Ansagen STIMME_ABSTAND Meter entfernt
   // sind, gilt das nicht mehr – jetzt darf sie sogar etwas drüber liegen,
   // weil sie von der Seite kommt und dort weniger präsent wirkt.
-  stimme.s1Links.volume.value = 1;
+  stimme.s1Links.volume.value = sprache.pegelS1Links;
 
   // Zwei Ansagen in Szene 2 mussten nachgezogen werden – beide, weil neben
   // ihnen etwas anderes im Vordergrund steht:
@@ -984,8 +1068,8 @@ async function initAudio() {
   //
   // Die Zahlen sind DEZIBEL (Tone.js rechnet hier in dB, nicht in Faktoren):
   // +6 dB ist ungefähr doppelt so laut empfunden, +4 dB deutlich hörbar mehr.
-  stimme.s2Links2.volume.value = 4;
-  stimme.s2Ende.volume.value   = 6;
+  stimme.s2Links2.volume.value = sprache.pegelS2Teil3;
+  stimme.s2Ende.volume.value   = sprache.pegelS2Ende;
 
   // ─── Die sieben Ambisonics-Dateien ───
   // Bewusst NACHEINANDER (jedes await wartet auf das vorherige): zusammen sind
@@ -1313,9 +1397,9 @@ function szene1Rechts() {
 // s2_speech2 ("Hier links hörst du…") und s2_speech3 ("Um dessen Komplexität…")
 // liegt die Pause, in der der Fink zwei Mal als Vorgeschmack ruft.
 //
-// Der Raum wechselt erst am Ende der Ansage: Der Swoosh setzt nach
-// S2_SWOOSH_NACH_SEK in s2_speech3 ein, in der Schlusspause nach
-// "…um die Zeit zu verlangsamen".
+// Der Raum wechselt erst am Ende der Ansage: Der Swoosh setzt
+// S2_SWOOSH_VOR_ENDE_SEK vor dem Ende von s2_speech3 ein, in der Schlusspause
+// nach "…um die Zeit zu verlangsamen".
 //
 // Der echte Fink kommt noch später – erst wenn die Stimme ganz fertig ist. Er
 // soll nicht in die Ansage hineinzwitschern. Ab da übersetzt TEIL 8 jede
@@ -1374,9 +1458,20 @@ function szene2() {
       stimme.s2Links2.start();
     }, S2_STIMME3_NACH_SEK);
 
-    // Der Raum wechselt mitten in TEIL 3, in dessen Schlusspause. Gezählt wird
-    // ab hier, deshalb die zwei Zeiten zusammen: erst warten, bis TEIL 3 läuft,
-    // dann noch S2_SWOOSH_NACH_SEK in die Datei hinein.
+    // Der Raum wechselt mitten in TEIL 3, in dessen Schlusspause.
+    //
+    // Diese Zeit setzt sich aus drei Stücken zusammen, weil ab HIER gezählt
+    // wird (dem Ende von TEIL 2), der Swoosh aber ans Ende von TEIL 3 gehört:
+    //
+    //   S2_STIMME3_NACH_SEK      warten, bis TEIL 3 überhaupt anfängt
+    // + Länge von TEIL 3         bis zu dessen Ende durchlaufen
+    // - S2_SWOOSH_VOR_ENDE_SEK   und kurz davor wieder zurück
+    //
+    // Die Länge fragen wir die Datei selbst (buffer.duration), statt sie als
+    // Zahl hinzuschreiben – so stimmt die Stelle in jeder Sprachfassung, auch
+    // wenn die Aufnahme zwei Sekunden länger oder kürzer ist. Der Buffer ist
+    // hier garantiert da: initAudio() wartet mit "await Tone.loaded()", bevor
+    // die Experience überhaupt starten darf (TEIL 6).
     spaeter(() => {
       if (!laeuft) return;
       spieleBettEinmal(swooshS2);
@@ -1391,7 +1486,7 @@ function szene2() {
       // multipliziert – +3 dB sind mal 1.41. Aus den früheren 1.8 werden so 2.54.
       starteBett(nature2, 4, 2.54);
       starteBett(natureFx, 4, 0.45);
-    }, S2_STIMME3_NACH_SEK + S2_SWOOSH_NACH_SEK);
+    }, S2_STIMME3_NACH_SEK + stimme.s2Links2.buffer.duration - S2_SWOOSH_VOR_ENDE_SEK);
   };
 
   // Ausgesprochen – jetzt übernimmt der echte Fink, und der Kopf wird zum
@@ -1784,6 +1879,10 @@ function tick() {
   const zeit = startZeit === 0 ? 0 : (performance.now() - startZeit) / 1000;
   const angezeigteKugel = phase === 'kugel2' ? kugel2 : kugel1;
   document.getElementById('hud').innerHTML =
+    // Ganz oben die Sprache: In der Ausstellung stehen zwei Rechner
+    // nebeneinander, und beim Aufbau will man auf einen Blick sehen, dass auf
+    // diesem hier wirklich die richtige Fassung läuft.
+    `spr &nbsp;&nbsp;${SPRACHE}<br>` +
     `zeit &nbsp;${zeit.toFixed(1)} s<br>` +
     `yaw &nbsp;&nbsp;${yaw.toFixed(2)} / ${yawFortlaufend.toFixed(2)}<br>` +
     `pitch ${pitch.toFixed(2)}<br>` +

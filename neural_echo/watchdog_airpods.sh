@@ -19,6 +19,12 @@
 # ACHTUNG beim Rechner- oder Kopfhoererwechsel: das sind konkrete Geraete,
 # jedes Paar hat seine eigene Adresse. Neue herausfinden mit:
 #     ./tools/blueutil --paired
+#
+# Der Wert hier ist nur die Vorgabe. Im Futurium stehen zwei Rechner mit je
+# einem eigenen Kopfhoerer – dort steht die richtige Adresse in standort.conf
+# (siehe standort.conf.beispiel), und die ueberschreibt diese Zeile gleich
+# unten. So bleibt diese Datei auf beiden Rechnern identisch und "git pull"
+# macht keinen Konflikt.
 AIRPODS="70-F9-4A-94-0D-D5"
 
 # Wie oft wird geprueft (Sekunden). 10 ist ein guter Kompromiss:
@@ -37,6 +43,25 @@ LANGE_PAUSE=60
 # dem Verbindungsaufbau wieder her – einmaliges Setzen direkt beim Connect
 # reicht deshalb nicht, es muss bei jeder Pruefung erneut gesetzt werden.
 LAUTSTAERKE_ZIEL=100
+
+# ─────────────────────────────────────────────────────────────
+# WAS AN DIESEM RECHNER ANDERS IST
+# ─────────────────────────────────────────────────────────────
+
+# $0 ist der Pfad zu diesem Script. Ueber seinen Ordner finden wir standort.conf
+# und tools/ auch dann, wenn das Script aus einem anderen Verzeichnis aufgerufen
+# wird.
+EIGENER_ORDNER="$(cd "$(dirname "$0")" && pwd)"
+
+# standort.conf liegt neben diesem Script und ist bewusst NICHT in git: Sie
+# enthaelt die Werte, die sich von Rechner zu Rechner unterscheiden – fuer den
+# Watchdog ist das die Bluetooth-Adresse des Kopfhoerers, der an dieser Station
+# haengt. Der Punkt-Befehl liest die Datei so, als staende ihr Inhalt hier.
+#
+# Fehlt die Datei, bleibt es bei der Vorgabe oben und alles laeuft wie bisher.
+if [ -f "$EIGENER_ORDNER/standort.conf" ]; then
+  . "$EIGENER_ORDNER/standort.conf"
+fi
 
 # ─────────────────────────────────────────────────────────────
 # HILFSMITTEL
@@ -59,14 +84,14 @@ setze_lautstaerke() {
 # VORPRUEFUNG
 # ─────────────────────────────────────────────────────────────
 
+# Welche Adresse gilt jetzt eigentlich? Bei zwei Stationen mit zwei Kopfhoerern
+# ist das die erste Frage, wenn einer nicht verbindet – also steht sie im Log.
+melde "Kopfhoerer-Adresse: $AIRPODS"
+
 # Welches blueutil benutzen wir? Bevorzugt die mitgelieferte Kopie in tools/,
 # damit auf dem Ausstellungsrechner nichts installiert werden muss. Nur falls
 # die fehlt oder nicht laeuft (z.B. Intel-Mac – die Kopie ist arm64), greifen
 # wir auf ein per Homebrew installiertes blueutil zurueck.
-#
-# $0 ist der Pfad zu diesem Script. Ueber seinen Ordner finden wir tools/
-# auch dann, wenn das Script aus einem anderen Verzeichnis aufgerufen wird.
-EIGENER_ORDNER="$(cd "$(dirname "$0")" && pwd)"
 BLUEUTIL="$EIGENER_ORDNER/tools/blueutil"
 
 if ! "$BLUEUTIL" --version >/dev/null 2>&1; then

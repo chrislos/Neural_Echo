@@ -5,6 +5,20 @@
 # In den Ordner wechseln, in dem dieses Script liegt – egal von wo man es aufruft.
 cd "$(dirname "$0")"
 
+# ── Was an DIESEM Rechner anders ist ─────────────────────────────────────────
+# Im Futurium stehen zwei Mac minis mit demselben Code: einer spielt die
+# deutsche Fassung, der andere die englische. Der Unterschied steht in
+# standort.conf – die liegt neben diesem Script und ist bewusst NICHT in git,
+# damit "git pull" auf keinem der beiden Rechner einen Konflikt macht
+# (Vorlage: standort.conf.beispiel).
+#
+# Fehlt die Datei, laeuft die deutsche Fassung. Eine frische Kopie des Repos
+# startet also sofort, ohne Einrichtung.
+SPRACHE="DE"
+if [ -f standort.conf ]; then
+  . ./standort.conf
+fi
+
 # ── Sichtbares Fenster beim Autostart ────────────────────────────────────────
 # Beim Booten startet der LaunchAgent dieses Script unsichtbar im Hintergrund;
 # man sieht die Ausgabe dann nur in start.log. Fuer die Fehlersuche aus der
@@ -67,6 +81,7 @@ open -a "$(pwd)/headtracker_bridge/Debug/headtracker_bridge.app"
 # Jetzt warten, bis Port 8080 wirklich antwortet, statt blind eine feste
 # Anzahl Sekunden zu schlafen – so dauert der Start nie laenger als noetig,
 # ist aber trotzdem sicher, egal wie lange die Bridge zum Hochfahren braucht.
+echo "Sprachfassung dieser Station: $SPRACHE"
 echo "Warte auf headtracker_bridge (Port 8080) …"
 for i in $(seq 1 30); do
   if (exec 3<>/dev/tcp/localhost/8080) 2>/dev/null; then
@@ -126,9 +141,14 @@ sleep 2
   --disable-renderer-backgrounding \
   --disable-background-timer-throttling \
   --kiosk \
-  http://localhost:3000
+  "http://localhost:3000/?lang=$SPRACHE"
   # --kiosk = für die Ausstellung: Vollbild ohne Browser-UI. Zum Beenden Cmd+Q.
   #           Zum Entwickeln die Zeile einfach auskommentieren.
+  #
+  # ?lang=… sagt src/index.js, aus welchem Ordner die Ansagen kommen
+  # (static/voices/DE/ oder /EN/). Der Wert kommt aus standort.conf, siehe ganz
+  # oben. Deshalb sind die Anfuehrungszeichen wichtig: ohne sie wuerde die
+  # Shell das ? als Dateimuster lesen.
 
 # Wenn Chrome geschlossen wird, läuft das Script hier weiter – aufraeumen()
 # (siehe trap oben) beendet dann Vite und den Watchdog.

@@ -73,7 +73,10 @@ neural_echo/
     index.js               der komplette Ablauf: Audio, Szenen, Interaktion
     3dhead.js              alles Sichtbare (Three.js)
   static/                  Klänge und Musik – NICHT im Repo, siehe unten
-    voices/DE/             die gesprochenen Ansagen, ein Ordner pro Sprachfassung
+    voices/DE/             die deutschen Ansagen
+    voices/EN/             dieselben Dateinamen auf Englisch
+  standort.conf            was an DIESEM Rechner anders ist (Sprache, Kopfhörer)
+  standort.conf.beispiel   die Vorlage dafür – standort.conf selbst ist nicht im Repo
   concept/
     skript.txt             das Skript: jeder Satz mit zugehöriger Audio-Datei
     scope.jpg              Konzeptskizze
@@ -128,20 +131,76 @@ baut, entweder das Build-Ziel anpassen oder die App dorthin kopieren.
 
 **4. AirPods koppeln** – einmal ganz normal über die Systemeinstellungen.
 
-**5. Die Bluetooth-Adresse in den Watchdog eintragen.** Jedes Kopfhörer-Paar
-hat seine eigene:
+**5. `standort.conf` anlegen.** Darin steht, was diesen Rechner von den anderen
+unterscheidet: die Sprachfassung und die Bluetooth-Adresse seines Kopfhörers.
 
 ```bash
-./tools/blueutil --paired
+cp standort.conf.beispiel standort.conf
+./tools/blueutil --paired      # zeigt die Adresse des gekoppelten Kopfhörers
 ```
 
-Die Adresse oben in `watchdog_airpods.sh` bei `AIRPODS=` eintragen.
+Dann die zwei Werte in `standort.conf` eintragen:
+
+```sh
+SPRACHE="DE"                     # DE oder EN
+AIRPODS="70-F9-4A-94-0D-D5"      # die Adresse aus dem Befehl oben
+```
+
+Die Datei ist **nicht im Repo** (siehe `.gitignore`) – genau deshalb gibt es
+sie: So laufen alle Rechner auf identischem Code, und `git pull` macht nirgends
+einen Konflikt. Fehlt sie, läuft die deutsche Fassung mit der im Watchdog
+hinterlegten Vorgabe-Adresse.
 
 **6. Testlauf:**
 
 ```bash
 ./start.sh
 ```
+
+Oben rechts im Bild steht `spr DE` bzw. `spr EN` – daran sieht man auf einen
+Blick, ob die richtige Fassung läuft.
+
+---
+
+## Zwei Stationen: Deutsch und Englisch
+
+Im Futurium stehen zwei Mac minis nebeneinander. Sie unterscheiden sich in
+**genau zwei Dingen**, und beide stehen in `standort.conf`:
+
+| | Station 1 | Station 2 |
+|---|---|---|
+| `SPRACHE` | `DE` | `EN` |
+| `AIRPODS` | Adresse Kopfhörer 1 | Adresse Kopfhörer 2 |
+
+Alles andere ist identisch – **derselbe Commit, derselbe Code**. Es gibt keinen
+zweiten Branch und keine zweite `index.js`. Wer am Sounddesign arbeitet, ändert
+es damit automatisch für beide Fassungen.
+
+**Wie die Sprache in die App kommt:** `start.sh` liest `SPRACHE` aus
+`standort.conf` und hängt sie an die Adresse an, mit der Chrome startet:
+
+```
+http://localhost:3000/?lang=EN
+```
+
+`src/index.js` liest den Parameter ganz oben in TEIL 1 aus und lädt die Ansagen
+aus `static/voices/DE/` bzw. `static/voices/EN/`. Steht dort etwas Unbekanntes,
+läuft die deutsche Fassung – ein Tippfehler legt die Ausstellung nicht lahm.
+
+Zum Ausprobieren am eigenen Rechner braucht es keine `standort.conf`, es reicht
+die Adresszeile: `http://localhost:3000/?lang=EN` (mit `&auto` startet die
+Experience gleich mit).
+
+**Was sich pro Sprache einstellen lässt**, steht gesammelt in der Tabelle
+`SPRACHEN` in `src/index.js`, TEIL 1: der Ordner, drei Lautstärke-Korrekturen
+für einzelne Ansagen und der Hinweistext auf dem Bildschirm. Mehr braucht es
+nicht, weil der Ablauf fast überall am **Ende** einer Sprachdatei hängt und
+nicht an festen Zeiten – ist eine englische Ansage länger, wartet die nächste
+Szene von allein länger.
+
+**Beim Koppeln aufpassen:** Jeden Kopfhörer nur mit *seinem* Rechner koppeln.
+Ist ein Kopfhörer beiden Rechnern bekannt, holt ihn der Watchdog der anderen
+Station im laufenden Betrieb zu sich herüber – mitten in der Experience.
 
 ---
 
@@ -284,6 +343,10 @@ Das Werkzeug dahinter ist `blueutil` und liegt fertig in `tools/` – auf einem
 Apple-Silicon-Mac ist nichts zu installieren. Auf einem Intel-Mac braucht es
 `brew install blueutil`, die mitgelieferte Kopie ist arm64.
 
+**Welchen Kopfhörer der Watchdog überwacht**, steht in `standort.conf` bei
+`AIRPODS=` – pro Rechner ein anderer. Er schreibt die Adresse beim Start ins
+Log; bei zwei Stationen ist das die erste Frage, wenn einer nicht verbindet.
+
 ### Warum Chrome bestimmte Flags bekommt
 
 Wird der Monitor kurz stromlos (Kabel raus, Bildschirmschoner des Monitors),
@@ -314,7 +377,9 @@ hinterher nachlesen geht also beides.
 | Kopf auf dem Bildschirm bewegt sich nicht | Bridge lief beim Laden der Seite noch nicht | Bridge starten, **dann** die Seite neu laden – die WebSocket-Verbindung wird nur einmal aufgebaut |
 | Bridge liefert keine Daten | Build nicht signiert oder Head-Pose-Entitlement fehlt | In Xcode Development Team setzen und neu bauen |
 | „Geradeaus" ist schief | Kalibrierung erwischte eine Kopfbewegung | Taste `r` drückt eine neue Kalibrierung durch |
-| AirPods immer wieder weg | Falsche Bluetooth-Adresse im Watchdog | `./tools/blueutil --paired` und `AIRPODS=` korrigieren |
+| AirPods immer wieder weg | Falsche Bluetooth-Adresse im Watchdog | `./tools/blueutil --paired` und `AIRPODS=` in `standort.conf` korrigieren |
+| Kopfhörer wandert zur anderen Station | Er ist mit beiden Rechnern gekoppelt, der andere Watchdog holt ihn | Auf dem fremden Rechner die Kopplung entfernen |
+| Falsche Sprache läuft | `standort.conf` fehlt oder `SPRACHE` ist falsch gesetzt | Datei anlegen bzw. korrigieren und `start.sh` neu starten; oben rechts steht `spr DE`/`spr EN` |
 | Ton kommt aus den Mac-Lautsprechern | AirPods waren beim Start noch nicht als Ausgang bereit | Der Watchdog fängt das normalerweise ab; sonst Ausgabegerät von Hand umstellen |
 | Nach einer Weile reagiert nichts mehr | Chrome hat gedrosselt (Fenster galt als verdeckt) | Prüfen, ob die `--disable-…`-Flags in `start.sh` noch da sind |
 | Zeitlupe in Szene 2 hängt am Anschlag | Aussetzer in der Verbindung beim Drehen | Kopf zurückdrehen – `YAW_GRENZE` fängt das ab; sonst `r` |

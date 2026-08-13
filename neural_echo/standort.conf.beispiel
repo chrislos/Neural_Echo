@@ -1,0 +1,39 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  standort.conf – was an DIESEM Rechner anders ist als an allen anderen
+# ─────────────────────────────────────────────────────────────────────────────
+#
+#  Im Futurium stehen zwei Mac minis nebeneinander: einer spielt dauerhaft die
+#  deutsche Fassung, der andere dauerhaft die englische, jeder mit seinem
+#  eigenen AirPods Max. Der Code ist auf beiden Rechnern bit-identisch – nur
+#  diese Datei unterscheidet sich.
+#
+#  Warum eine eigene Datei und nicht einfach eine Zeile im Code ändern?
+#  Weil diese Datei NICHT in git liegt (siehe .gitignore). Stünde die Sprache
+#  in index.js und die Bluetooth-Adresse in watchdog_airpods.sh, müsste man sie
+#  auf jedem Rechner nach jedem "git pull" wieder von Hand hinbiegen – und
+#  irgendwann läuft die englische Station versehentlich auf Deutsch.
+#
+#  EINRICHTEN – einmal pro Rechner:
+#
+#    cp standort.conf.beispiel standort.conf
+#    (dann die zwei Werte unten anpassen und ./start.sh neu starten)
+#
+#  Fehlt die Datei ganz, läuft alles mit den Vorgaben weiter: deutsche Fassung
+#  und der erste AirPods Max. Eine frisch geklonte Kopie funktioniert also
+#  sofort, ohne Einrichtung.
+
+# Welche Sprachfassung spielt dieser Rechner?  DE oder EN
+# start.sh hängt das an die Adresse an (…:3000/?lang=EN), src/index.js liest es
+# dort aus und lädt die Ansagen aus static/voices/DE/ bzw. static/voices/EN/.
+SPRACHE="DE"
+
+# Die Bluetooth-Adresse des AirPods Max, der an DIESEM Rechner hängt.
+# Der Watchdog verbindet genau diesen Kopfhörer neu, wenn er sich abschaltet.
+#
+# Herausfinden – Kopfhörer koppeln, dann:
+#     ./tools/blueutil --paired
+#
+# WICHTIG: Jeden Kopfhörer nur mit SEINEM Rechner koppeln. Ist ein Kopfhörer
+# mit beiden Rechnern bekannt, zieht ihn der Watchdog der anderen Station im
+# laufenden Betrieb zu sich herüber – mitten in der Experience.
+AIRPODS="70-F9-4A-94-0D-D5"

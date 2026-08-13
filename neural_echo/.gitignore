@@ -2,6 +2,13 @@ node_modules/
 dist/
 .DS_Store
 
+# Die Konfiguration des einzelnen Ausstellungsrechners: Sprachfassung und
+# Bluetooth-Adresse des Kopfhoerers. Genau das, was sich zwischen den beiden
+# Mac minis unterscheidet – haette sie im Repo zu suchen, gaebe es auf jedem
+# Rechner nach jedem "git pull" einen Konflikt. Die Vorlage
+# standort.conf.beispiel ist dagegen versioniert.
+standort.conf
+
 # Laufzeit-Logs: der LaunchAgent (~/Library/LaunchAgents/com.neuralecho.start.plist)
 # schreibt start.log und start-error.log in diesen Ordner, watchdog_airpods.sh
 # ebenfalls. Reine Betriebsdaten der Ausstellung, nicht Teil des Projekts.

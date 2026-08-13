@@ -38,7 +38,8 @@ split into numbered TEIL sections. Keep that structure when editing – put new
 code in the part it belongs to instead of appending at the end:
 
 ```
-TEIL 1   DATEIEN – all file paths in one place; swap recordings here only
+TEIL 1   DATEIEN – all file paths in one place; swap recordings here only.
+         Also the `SPRACHEN` table + `SPRACHE` (read from `?lang=`)
 TEIL 2   settings (every tunable number, incl. the `orchester` array)
 TEIL 3   mutable state (`phase`, `laeuft`, angles, kugel1/kugel2, fink, beds)
 TEIL 4   the ONLY shared helpers: lerp, spaeter, and the ambisonic beds
@@ -78,14 +79,17 @@ static/        – all sounds and music, FLAT (no scene subfolders) so a
                  scene is encoded in the filename prefix: intro_, s1_, s2_,
                  s3_. Vite serves the folder at '/' (publicDir), so a path is
                  just '/s2_fink_(mono).wav'. Parentheses need no encoding.
-static/voices/DE/
-               – the spoken lines, one folder per language version, same
-                 filenames in each. TEIL 1 builds them from the single
-                 constant `STIMMEN_ORDNER` – switch language there, not in
-                 each entry.
+static/voices/DE/ + EN/
+               – the spoken lines, one folder per language version, IDENTICAL
+                 filenames in each. TEIL 1 builds every path from
+                 `sprache.ordner` – never hardcode a folder in an entry.
                  `static/_old/` (retired prototype set), the other
                  `static/voices/*` folders (alternate speaker takes) and
                  `*.asd` (Ableton caches) are not loaded – ignore them.
+standort.conf  – per-machine config (language + AirPods BT address), gitignored;
+                 `standort.conf.beispiel` is the committed template. Both
+                 start.sh and watchdog_airpods.sh source it, each with a
+                 working default so a fresh clone runs without it.
 start.sh       – exhibition launcher. Order matters: the bridge must answer on
                  port 8080 BEFORE Chrome loads the page, because index.js opens
                  the WebSocket exactly once and never retries.
@@ -94,6 +98,25 @@ watchdog_airpods.sh + tools/blueutil
                  re-forces system volume on every check. The BT address is
                  hardcoded at the top and is per-device.
 ```
+
+## Bilingual (DE/EN)
+
+Both language versions run from ONE `index.js`; there is no second branch or
+copy. Two exhibition Macs run the same commit and differ only in their
+gitignored `standort.conf`.
+
+- Language is DATA, not control flow. Everything language-dependent lives in
+  the `SPRACHEN` table in TEIL 1 (folder, three dB trims, the on-screen hint).
+  Never add `if (SPRACHE === 'EN')` to a scene – that reintroduces the
+  double-maintenance problem the table exists to prevent.
+- Scene transitions hang off `.onstop`, i.e. the END of a voice file, so they
+  shift with the recording automatically. Keep it that way when adding scenes.
+- A cue that must land INSIDE a voice file is computed from
+  `spieler.buffer.duration` (see the scene-2 swoosh), not from an absolute
+  offset – an absolute offset silently breaks on the other language. The intro
+  swoosh is the one exception, documented in place.
+- Per-voice dB trims belong in `SPRACHEN`, not in TEIL 6: they are properties
+  of the recording, not of the scene.
 
 ## Conventions
 

@@ -63,7 +63,8 @@ src/
   index.js     der komplette Ablauf: Audio, Szenen, Interaktion, tick()
   3dhead.js    alles Sichtbare (Three.js: Drahtgitter-Kopf, Kugeln)
 static/        Klänge und Musik, flach (Vite liefert den Ordner unter '/' aus)
-  voices/DE/   die gesprochenen Ansagen – ein Ordner pro Sprachfassung
+  voices/DE/   die deutschen Ansagen
+  voices/EN/   dieselben Dateinamen auf Englisch
 concept/       Skript und Konzeptskizze
 ```
 
@@ -74,7 +75,8 @@ TEIL-Abschnitte geteilt. Neuer Code gehört in den Teil, in den er inhaltlich
 passt – nicht ans Ende:
 
 ```
-TEIL 1   Die Audio-Dateien – alle Pfade an einer Stelle
+TEIL 1   Die Audio-Dateien – alle Pfade an einer Stelle, plus die
+         Sprachfassung (Tabelle SPRACHEN)
 TEIL 2   Einstellungen – jede Zahl, an der man dreht
 TEIL 3   Variablen, die sich während der Experience verändern
 TEIL 4   Werkzeugkasten – nur was wirklich überall gebraucht wird
@@ -155,9 +157,10 @@ Die Dateien liegen an **zwei** Orten:
 - **Klänge und Musik** flach in `static/`, ohne Unterordner – so kann eine neu
   geschnittene Aufnahme einfach über die alte kopiert werden, ohne dass im Code
   etwas geändert werden muss. Die Szene steckt im Präfix des Dateinamens.
-- **Die gesprochenen Ansagen** in `static/voices/DE/`, ein Ordner pro
-  Sprachfassung. Die Dateinamen sind in jeder Fassung gleich; umgeschaltet wird
-  im Code an genau einer Stelle, der Konstanten `STIMMEN_ORDNER` in TEIL 1.
+- **Die gesprochenen Ansagen** in `static/voices/DE/` und `static/voices/EN/`,
+  ein Ordner pro Sprachfassung. Die Dateinamen sind in jeder Fassung **gleich**
+  – welcher Ordner geladen wird, entscheidet die Adresszeile (`?lang=EN`, siehe
+  [Zwei Sprachfassungen](#zwei-sprachfassungen)).
 
 Die zwei Kennzeichnungen im Dateinamen:
 
@@ -182,7 +185,7 @@ Die zwei Kennzeichnungen im Dateinamen:
 | `s3_musik_basis.wav` | Streicherfläche, unter allem |
 | `s3_musik_cello/gitarre/klavier/floete/perkussion.wav` | die fünf Instrumente im Raum |
 
-**Ansagen – `static/voices/DE/`:**
+**Ansagen – `static/voices/DE/` und `static/voices/EN/`:**
 
 | Datei | Rolle |
 |---|---|
@@ -206,12 +209,63 @@ Aufnahme schneiden zu müssen.
 - `static/voices/DE/s3_speech2_(mono)_Vorschlag von Mathis.wav` – Alternative,
   wird nicht benutzt
 - die übrigen Ordner in `static/voices/` (Anna GER/ENG, Mathis, Till) –
-  Aufnahmen der verschiedenen Sprecherinnen und Sprecher als Reservoir. Achtung:
-  Ihre Dateinamen weichen ab (`intro_speech_lena_engl.wav`), und `s2_speech3/4`
-  fehlen dort – für eine zweite Sprachfassung müssten sie erst nach dem Muster
-  von `DE/` benannt werden.
+  Aufnahmen der verschiedenen Sprecherinnen und Sprecher als Reservoir. Ihre
+  Dateinamen weichen ab (`intro_speech_lena_engl.wav`); geladen werden nur `DE/`
+  und `EN/`.
 - `static/_old/` – der ausgemusterte Prototyp-Satz
 - `*.asd` – Wellenform-Caches von Ableton, ohne Bedeutung
+
+## Zwei Sprachfassungen
+
+Die Experience läuft auf Deutsch und auf Englisch – aus **einer** `index.js`.
+Es gibt keinen zweiten Branch und keine Kopie der Datei: Wer am Sounddesign
+arbeitet, ändert damit automatisch beide Fassungen.
+
+**Umschalten** über die Adresszeile:
+
+```
+http://localhost:3000/?lang=EN        # Englisch
+http://localhost:3000/                # Deutsch (Vorgabe)
+http://localhost:3000/?lang=EN&auto   # Englisch, startet sofort
+```
+
+In der Ausstellung setzt `start.sh` den Parameter aus `standort.conf` – siehe
+[../README.md](../README.md#zwei-stationen-deutsch-und-englisch). Oben rechts im
+Bild steht `spr DE` bzw. `spr EN`.
+
+**Warum das so wenig Code braucht:** Der Ablauf in TEIL 7 hängt fast überall am
+**Ende** einer Sprachdatei (`.onstop`) und nicht an der Uhr. Ist die englische
+Ansage zwei Sekunden länger, wartet die nächste Szene von allein zwei Sekunden
+länger. Nur zwei Zeiten zählen überhaupt *in* eine Sprachdatei hinein:
+
+| Zeitpunkt | Wie er gerechnet wird |
+|---|---|
+| Intro-Swoosh | fest 6 s nach dem ersten Wort – die Intros sind auf Deutsch 7,2 s und auf Englisch 7,4 s lang, der Unterschied ist zu klein für eine Tabelle |
+| Swoosh in Szene 2 | `buffer.duration - S2_SWOOSH_VOR_ENDE_SEK`, also **vom Ende** von `s2_speech3` gezählt – so sitzt er in jeder Sprache in derselben Schlusspause |
+
+Beim Szene-2-Swoosh ist das keine Kosmetik: Vom Anfang gezählt (früher 8,95 s)
+läge er bei der kürzeren englischen Aufnahme **nach** dem Ende der Ansage – und
+weil der Fink genau an diesem Ende hängt, käme erst der Vogel und dann der
+Raumwechsel.
+
+**Was sich pro Sprache einstellen lässt**, steht in der Tabelle `SPRACHEN` in
+TEIL 1:
+
+| Feld | Wofür |
+|---|---|
+| `ordner` | `/voices/DE/` oder `/voices/EN/` |
+| `pegelS1Links` | dB-Korrektur für „Hey, hier bin ich" |
+| `pegelS2Teil3` | dB-Korrektur für „Um dessen Komplexität…" (spricht aus 6 m) |
+| `pegelS2Ende` | dB-Korrektur für „Hör zum Schluss…" (liegt über der Szene) |
+| `hinweis` | der Text unten im Bild – das Einzige, was ein Besucher liest |
+
+Die Pegel gehören zur **Aufnahme**, nicht zur Szene: Eine andere Sprecherin ist
+anders eingesprochen. Die englischen Werte stehen zunächst auf denselben Zahlen
+wie die deutschen und werden beim ersten Durchhören nachgezogen.
+
+**Eine neue Sprache** braucht damit drei Dinge: einen Ordner unter
+`static/voices/` mit **exakt denselben Dateinamen** wie `DE/`, einen Eintrag in
+`SPRACHEN` und den passenden `?lang=`-Wert.
 
 ## Woran man dreht
 
