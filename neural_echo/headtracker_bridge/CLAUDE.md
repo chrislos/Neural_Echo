@@ -15,6 +15,17 @@ From the command line (after setting a team in Xcode once):
 xcodebuild -project headtracker_bridge.xcodeproj -scheme headtracker_bridge -configuration Debug build
 ```
 
+`start.sh` (one level up) launches the built app from `Debug/headtracker_bridge.app`
+— gitignored, so a fresh clone must build once before the exhibition script works.
+
+`test_client.js` is the only non-Swift file here and the reason `package.json`
+exists (its single dependency `ws`): `npm install` once, then `node test_client.js`
+connects to port 8080
+and prints the JSON stream, which tells you whether the bridge or the browser
+side is at fault. An old p5.js prototype (`public/`, `server.js`, `studies/`)
+used to live in this folder and was removed — it had nothing to do with the
+bridge.
+
 ## Required Setup (one-time)
 
 1. **Development Team**: In Xcode → target → Signing & Capabilities, set your Apple Developer account team. The entitlement `com.apple.developer.coremotion.head-pose` requires a signed build — it will not work without code signing.

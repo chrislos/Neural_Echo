@@ -1,14 +1,13 @@
-headtracker_bridge/node_modules
-headtracker_bridge/public/node_modules
+# Audio gehoert nicht ins Repo: die Aufnahmen in neural_echo/static sind
+# zusammen ~850 MB und werden separat auf den Rechner kopiert.
 *.mp3
 *.wav
+
+# Ableton legt neben jeder Audiodatei eine Analyse-Datei ab.
+*.asd
+
 .DS_Store
 **/.DS_Store
-Sonar/node_modules
-*.asd
-Sonar_Class/node_modules
-Sonar_Levels_Adv/dist
-Sonar_Levels_szene_02_finch/dist
-Sonar_Levels_szene_02_finch/node_modules
-Sonar_Levels_szene_03_music/dist
-Sonar_Levels_szene_03_music/node_modules
+
+# Alles Weitere (node_modules, dist, Logs, standort.conf, Xcode-Kram) steht in
+# neural_echo/.gitignore, direkt neben den Ordnern, um die es geht.
