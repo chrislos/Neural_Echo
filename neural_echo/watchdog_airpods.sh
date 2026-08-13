@@ -37,6 +37,20 @@ INTERVALL=10
 FEHLER_BIS_PAUSE=3
 LANGE_PAUSE=60
 
+# Waehrend einer solchen Pause wird trotzdem in diesem Takt (Sekunden) kurz
+# nachgesehen, ob die AirPods inzwischen verbunden sind – dann bricht die Pause
+# sofort ab.
+#
+# Warum das wichtig ist: die AirPods Max verbinden sich beim Aufsetzen oft VON
+# SELBST wieder. Wuerde der Watchdog stur seine 60 Sekunden abwarten, laeuft das
+# Intro laengst – mit der leisen Lautstaerke, die macOS sich fuer die AirPods
+# gemerkt hat. Genau der leise Start, den wir vermeiden wollen.
+#
+# Das ist kein Widerspruch zu INTERVALL: --is-connected ist eine reine Abfrage,
+# billig und ohne Funkverkehr. Teuer und akkufressend sind die VERBINDUNGS-
+# VERSUCHE, und die bleiben so selten wie vorher.
+VERBINDUNGS_PRUEFTAKT=2
+
 # Auf diese Lautstaerke (0-100) wird die Systemausgabe erzwungen, solange die
 # AirPods verbunden sind. Warum ueberhaupt noetig: macOS merkt sich pro Geraet
 # eine eigene Lautstaerke und stellt sie manchmal erst ein paar Sekunden NACH
@@ -117,6 +131,33 @@ warte_und_halte_lautstaerke() {
     setze_lautstaerke
     sleep "$LAUTSTAERKE_INTERVALL"
     rest=$((rest - LAUTSTAERKE_INTERVALL))
+  done
+}
+
+# Wartet die uebergebene Zeit ab, bricht aber sofort ab, sobald die AirPods
+# verbunden sind. Fuer alle Wartezeiten im GETRENNTEN Zustand – siehe
+# VERBINDUNGS_PRUEFTAKT oben fuer das Warum.
+#
+# Die Lautstaerke wird hier absichtlich NICHT gesetzt: nach dem Abbruch geht es
+# oben in der Schleife weiter, und der Verbunden-Zweig setzt sie als Erstes.
+# So gibt es dafuer weiterhin genau eine Stelle.
+warte_auf_verbindung() {
+  # 0 heisst "nicht zwischendurch nachsehen" – und verhindert nebenbei eine
+  # Schleife ohne Wartezeit, die einen Kern voll auslasten wuerde.
+  if [ "$VERBINDUNGS_PRUEFTAKT" -le 0 ]; then
+    sleep "$1"
+    return
+  fi
+
+  rest_pause="$1"
+
+  while [ "$rest_pause" -gt 0 ]; do
+    sleep "$VERBINDUNGS_PRUEFTAKT"
+    rest_pause=$((rest_pause - VERBINDUNGS_PRUEFTAKT))
+
+    if [ "$("$BLUEUTIL" --is-connected "$AIRPODS")" = "1" ]; then
+      return
+    fi
   done
 }
 
@@ -211,13 +252,13 @@ while true; do
       if [ "$fehler" -ge "$FEHLER_BIS_PAUSE" ]; then
         melde "Mehrfach fehlgeschlagen – AirPods schlafen vermutlich. Warte ${LANGE_PAUSE}s."
         melde "Tipp: AirPods einmal aufsetzen oder bewegen, dann wachen sie auf."
-        sleep "$LANGE_PAUSE"
+        warte_auf_verbindung "$LANGE_PAUSE"
         fehler=0
       fi
 
       # Getrennte AirPods: hier nur warten. Die Lautstaerke lassen wir in Ruhe,
       # solange der Ton auf den eingebauten Lautsprechern liegt.
-      sleep "$INTERVALL"
+      warte_auf_verbindung "$INTERVALL"
     fi
   fi
 done

@@ -363,7 +363,11 @@ einer unbeaufsichtigten Ausstellung sonst den Betrieb beenden:
   Der Watchdog prüft alle 10 Sekunden, ob sie verbunden sind, und verbindet
   sonst neu. Nach drei Fehlversuchen wartet er 60 Sekunden – liegen die
   Kopfhörer im Tiefschlaf, hilft Wiederholen nicht, sie müssen erst bewegt
-  werden.
+  werden. Diese Pause ist aber **weckbar**: alle 2 Sekunden sieht er kurz nach,
+  ob die Kopfhörer inzwischen da sind, und bricht dann sofort ab. Das ist der
+  häufige Fall nach langer Standzeit – die AirPods verbinden sich beim Aufsetzen
+  oft von selbst, und dann darf der Watchdog nicht noch eine Minute weiterschlafen
+  (siehe nächster Punkt).
 - **macOS merkt sich pro Gerät eine eigene Lautstärke** und stellt sie manchmal
   erst Sekunden nach dem Verbinden wieder her. Deshalb wird die Lautstärke nicht
   nur einmal beim Verbinden gesetzt, sondern **alle 2 Sekunden** nachgezogen –
@@ -379,6 +383,12 @@ einer unbeaufsichtigten Ausstellung sonst den Betrieb beenden:
 
   Bei *getrennten* AirPods bleibt die Lautstärke unangetastet – der Ton liegt
   dann auf den eingebauten Lautsprechern, und die soll niemand auf 100 finden.
+
+  In Zahlen, für den Fall „Installation lief stundenlang leer": ab dem Moment,
+  in dem die Verbindung steht, ist die Lautstärke nach spätestens 3 Sekunden
+  oben und wird danach alle 2 Sekunden gehalten. Das Intro startet frühestens
+  4 Sekunden nach dem Aufsetzen (`START_VERZOEGERUNG_SEK` in `src/index.js`,
+  TEIL 2) – die Lautstärke ist also vorher da.
 
 Das Werkzeug dahinter ist `blueutil` und liegt fertig in `tools/` – auf einem
 Apple-Silicon-Mac ist nichts zu installieren. Auf einem Intel-Mac braucht es

@@ -100,8 +100,12 @@ watchdog_airpods.sh + tools/blueutil
                  faster tick (LAUTSTAERKE_INTERVALL, 2s) so a visitor putting on
                  freshly reconnected AirPods never starts out too quiet. Volume
                  is only touched while CONNECTED – otherwise output has fallen
-                 back to the built-in speakers. The BT address is hardcoded at
-                 the top and is per-device.
+                 back to the built-in speakers. Every wait in the DISCONNECTED
+                 state (incl. the 60s LANGE_PAUSE) polls --is-connected every
+                 VERBINDUNGS_PRUEFTAKT and breaks out early: the AirPods often
+                 reconnect by themselves, and sleeping through that is what made
+                 the volume fix moot. The BT address is hardcoded at the top and
+                 is per-device.
 ```
 
 ## Bilingual (DE/EN)
