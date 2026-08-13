@@ -2,8 +2,8 @@
 #
 # kiosk_setup.sh — Mac mini für Dauerbetrieb / Kiosk-Modus konfigurieren
 #
-#   sudo ./scripts/kiosk_setup.sh          # anwenden
-#   sudo ./scripts/kiosk_setup.sh --undo   # Standardwerte zurücksetzen
+#   sudo ./tools/kiosk_setup.sh          # anwenden
+#   sudo ./tools/kiosk_setup.sh --undo   # Standardwerte zurücksetzen
 #
 # Kein nächtlicher Auto-Restart, kein Auto-Login (ist bereits eingerichtet).
 # Einzelne pmset-Keys existieren nicht auf jeder Hardware/macOS-Version —

@@ -143,12 +143,12 @@ gitignored `standort.conf`.
   looking at the ball.
 - Each ball has four layers: three recorded loops plus the "Fliege", a
   synthesized layer built in initAudio(): noise shaped by an LFO
-  (`FLIEGE_RAUSCH_ART` / `FLIEGE_LFO_ART`, currently pink + triangle – both were
-  picked by ear, so treat them as tunables, not as facts). The LFO's `min`/`max`
-  are deliberately swapped (1/0): that inversion is what turns a sawtooth into a
-  wing beat, and Tone has no "reverse sawtooth" type. It does nothing under the
-  current symmetric triangle – leave it in place anyway, it is what makes
-  `'sawtooth'` usable again. `FLIEGE_FLATTERN_AN`
+  (`FLIEGE_RAUSCH_ART` / `FLIEGE_LFO_ART`, pink + triangle – both were picked by
+  ear, so treat them as tunables, not as facts). The triangle is settled: a
+  reversed-sawtooth variant was tried and dropped for being too restless over a
+  full scene, and the `min`/`max` inversion (1/0) that existed only to build it
+  is gone with it – the LFO now runs plainly 0→1. Do not reintroduce either.
+  `FLIEGE_FLATTERN_AN`
   switches the modulation off entirely (currently ON; the switch exists as an
   A/B aid from a crackle hunt that turned out to be about stepped params, not
   the LFO); when off, the LFO is still built and started, it just isn't

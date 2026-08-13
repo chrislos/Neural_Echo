@@ -271,12 +271,13 @@ const ERFOLG2_LAUTSTAERKE = 0.2;
 // über alle Höhen verteilt" empfinden. Es klingt weicher und natürlicher, ohne
 // dass für die Ortung wichtiges Material verloren geht.
 //
-// Welche Wellenform? Zur Zeit ein Dreieck: gleichmäßig auf und ab, mit einem
-// Knick an den Umkehrpunkten. Es pulsiert also eher, als dass es schlägt. Davor
-// stand hier ein umgekehrter Sägezahn (harter Einsatz, langsamer Abfall), der
-// mehr nach Flügelschlag klang, aber auch unruhiger war. Die Wellenform steht
-// als eigene Einstellung da unten, weil das eine Entscheidung am Ohr ist und
-// keine, die man auf dem Papier trifft – die Liste dort lädt zum Probieren ein.
+// Welche Wellenform? Ein Dreieck: gleichmäßig auf und ab, mit einem Knick an
+// den Umkehrpunkten. Es pulsiert also eher, als dass es schlägt – und genau
+// deshalb steht es hier. Härtere Formen klingen zwar mehr nach Flügelschlag,
+// werden aber unruhig, wenn die Fliege minutenlang um den Kopf kreist. Die
+// Wellenform steht als eigene Einstellung da unten, weil das eine Entscheidung
+// am Ohr ist und keine, die man auf dem Papier trifft – die Liste dort lädt
+// zum Probieren ein.
 //
 // DER WICHTIGE BEREICH: Unter etwa 20 Hz hört man so eine Modulation als
 // Rhythmus – man könnte die Schläge mitzählen. Darüber verschmelzen sie zu
@@ -288,15 +289,7 @@ const FLIEGE_RAUSCH_ART = 'pink';  // 'white' = hell, 'pink' = weicher, 'brown' 
 // Die Wellenform des Flatterns:
 //   'sine'      weiches Auf und Ab
 //   'triangle'  wie Sinus, nur mit Knick an den Umkehrpunkten  ← läuft gerade
-//   'sawtooth'  harter Einsatz, dann langsamer Abfall – ein Flügelschlag
 //   'square'    hartes An/Aus, mehr Blinken als Flattern
-//
-// NUR wichtig, wenn man auf 'sawtooth' zurückgeht: Der läuft hier UMGEKEHRT,
-// also hart einsetzend und langsam abfallend. Einen eigenen Namen dafür gibt es
-// nicht – die Umkehrung macht das vertauschte min/max unten im LFO (TEIL 6).
-// Wer den normalen Sägezahn will (langsam ansteigen, hart abreißen), tauscht
-// dort die zwei Zahlen. Für Dreieck und Sinus ist das ohne Bedeutung, die sind
-// symmetrisch: Vorwärts und rückwärts sehen bei ihnen gleich aus.
 const FLIEGE_LFO_ART    = 'triangle';
 
 // ─── Flattern an oder aus ───
@@ -316,7 +309,7 @@ const FLIEGE_LFO_ART    = 'triangle';
 // Für den Fall, dass der Verdacht wiederkommt: Ein LFO kann dieses Problem gar
 // nicht verursachen. Er hängt als AUDIOSIGNAL am Regler und wird deshalb für
 // jedes einzelne Sample gerechnet – 48000 mal pro Sekunde, nicht 60. Selbst der
-// harte Sprung im Sägezahn sitzt damit sauber zwischen zwei Samples.
+// harte Sprung eines Rechtecks sitzt damit sauber zwischen zwei Samples.
 const FLIEGE_FLATTERN_AN = true;
 
 // Ohne Flattern muss der Regler, den sonst der LFO bewegt, auf einem festen
@@ -1317,20 +1310,10 @@ async function initAudio() {
 
     // Ein LFO ist ein Oszillator, der so langsam schwingt, dass man ihn nicht
     // als Ton hört, sondern als Bewegung. min und max sagen, zwischen welchen
-    // zwei Werten er hin und her fährt.
-    //
-    // Sie stehen verkehrt herum (erst 1, dann 0), und das ist Absicht: Tone
-    // rechnet Ausgang = Welle * (max - min) + min, mit max kleiner als min
-    // dreht sich die Kurve also um. Beim Dreieck, das gerade läuft, macht das
-    // keinen Unterschied – es ist symmetrisch, umgedreht sieht es gleich aus.
-    // Wichtig wird es erst, wenn oben wieder 'sawtooth' steht: Der steigt
-    // normalerweise langsam an und fällt hart ab, so herum wird daraus der
-    // harte Einsatz mit langsamem Abfall, also ein Flügelschlag. Einen Wellentyp
-    // "umgekehrter Sägezahn" gibt es in Tone.js nicht, diese zwei Zahlen SIND er.
-    //
-    // Deshalb bleiben sie stehen, obwohl sie im Moment nichts bewirken.
+    // zwei Werten er hin und her fährt: hier von 0 (zu) bis 1 (offen), er regelt
+    // das Rauschen also einmal pro Schwingung ganz auf und wieder ganz zu.
     kugel.fliegeTempoLfo = new Tone.LFO({
-      type: FLIEGE_LFO_ART, frequency: FLIEGE_HZ_FERN, min: 1, max: 0,
+      type: FLIEGE_LFO_ART, frequency: FLIEGE_HZ_FERN, min: 0, max: 1,
     });
 
     // Hier entscheidet sich, ob es flattert: Nur wenn der LFO an den Regler

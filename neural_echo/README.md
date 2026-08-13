@@ -136,8 +136,8 @@ die Kugel kommt, desto schneller flattert es (1 → 8 Hz über drei Abschnitte),
 und ein Tiefpass geht dabei auf, weil Fernes in echt auch dumpfer klingt.
 
 Die Wellenform steht in `FLIEGE_LFO_ART` und ist eine Entscheidung am Ohr:
-Zur Zeit ein Dreieck (gleichmäßiges Pulsieren), davor ein umgekehrter Sägezahn
-(harter Einsatz, langsamer Abfall – mehr Flügelschlag, aber unruhiger).
+ein Dreieck, also gleichmäßiges Pulsieren. Härtere Formen klingen mehr nach
+Flügelschlag, werden auf Dauer aber unruhig.
 
 Das Flattern lässt sich mit `FLIEGE_FLATTERN_AN` (TEIL 2) abschalten – dann
 läuft das Rauschen gleichmäßig durch, Entfernung, Lautstärke und Tiefpass
