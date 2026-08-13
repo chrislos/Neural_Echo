@@ -33,9 +33,9 @@
 //    TEIL 7   Der Ablauf – eine Funktion pro Szene
 //    TEIL 8   Jede Frame – hier passiert die Interaktion
 //    TEIL 9   Kopfhörer auf und ab (Start und Reset)
-//    TEIL 10  Hochfahren und Tasten zum Testen
+//    TEIL 10  Hochfahren und die Reset-Taste
 //
-//  DREI REGELN, DIE SICH DURCH DIE GANZE DATEI ZIEHEN:
+//  VIER REGELN, DIE SICH DURCH DIE GANZE DATEI ZIEHEN:
 //
 //    1. GELADEN wird nur in TEIL 6, GESPIELT nur in TEIL 7 und 8.
 //       Nie eine Audio-Datei mitten in einer Szene laden – das ruckelt.
@@ -43,6 +43,9 @@
 //       welche Interaktion gerade dran ist (phase).
 //    3. Eine Szene macht alles, was sie tut, in ihrer eigenen Funktion.
 //       Nur was wirklich überall gebraucht wird, steht im Werkzeugkasten.
+//    4. Was in TEIL 8 pro Bild nachgeregelt wird, FÄHRT auf seinen neuen Wert
+//       (rampTo) und springt nicht (.value =). Ein Sprung in der Lautstärke
+//       ist ein Klick, und 60 Klicks pro Sekunde hört man als Krisseln.
 
 import * as Tone from 'tone';
 import { ResonanceAudio } from 'resonance-audio';
@@ -100,7 +103,7 @@ const SPRACHEN = {
     pegelS1Links: 1, // "Hey, hier bin ich" – kommt von der Seite
     pegelS2Teil3: 4, // "Um dessen Komplexität…" – spricht aus 6 Metern
     pegelS2Ende:  6, // "Hör zum Schluss…" – liegt über der ganzen Szene
-    hinweis:      'setz die Kopfhörer auf … · h = simulieren · r = reset · 1/2 bzw. e = Erfolgsklänge',
+    hinweis:      'setz die Kopfhörer auf … · r = reset',
   },
   EN: {
     // Die Pegel starten mit denselben Werten wie in Deutsch. Beim ersten
@@ -109,7 +112,7 @@ const SPRACHEN = {
     pegelS1Links: 1,
     pegelS2Teil3: 4,
     pegelS2Ende:  6,
-    hinweis:      'put on the headphones … · h = simulate · r = reset · 1/2 or e = success sounds',
+    hinweis:      'put on the headphones … · r = reset',
   },
 };
 
@@ -251,9 +254,9 @@ const ERFOLG2_LAUTSTAERKE = 0.2;
 
 // ─── Das vierte Layer: die Fliege ───
 // Die drei Loops einer Kugel sind Aufnahmen. Dieses Layer nicht – es entsteht
-// live in Tone.js und läuft DURCHGEHEND: weißes Rauschen, das von einem
-// Sägezahn zerhackt wird. Das ergibt ein Flattern, wie ein Insekt, das um
-// deinen Kopf kreist. Je näher die Kugel kommt, desto schneller flattert es.
+// live in Tone.js und läuft DURCHGEHEND: Rauschen, das von einem LFO auf- und
+// abgeregelt wird. Das ergibt ein Flattern, wie ein Insekt, das um deinen Kopf
+// kreist. Je näher die Kugel kommt, desto schneller flattert es.
 //
 // Warum Rauschen und kein Ton? Rauschen hat keine Tonhöhe, es enthält alle
 // Frequenzen gleichzeitig. Erstens steht es damit zu nichts in Konkurrenz.
@@ -262,9 +265,18 @@ const ERFOLG2_LAUTSTAERKE = 0.2;
 // wertet aus, wie deine Ohrmuschel den Klang je nach Richtung verfärbt. Einem
 // einzelnen Ton fehlt dieses Material, der ist schwer zu lokalisieren.
 //
-// Warum Sägezahn und nicht Sinus? Der Sägezahn ist unsymmetrisch: harter
-// Einsatz, dann Abfall. Genau das macht daraus einen Flügelschlag statt eines
-// Säuselns.
+// Welche Rauschart? Weiß hat in jeder Frequenz gleich viel Energie und klingt
+// dadurch sehr hell und zischig – bei Kopfhörern auf Dauer anstrengend. Rosa
+// nimmt nach oben hin ab und kommt damit dem nahe, was wir als "gleichmäßig
+// über alle Höhen verteilt" empfinden. Es klingt weicher und natürlicher, ohne
+// dass für die Ortung wichtiges Material verloren geht.
+//
+// Welche Wellenform? Zur Zeit ein Dreieck: gleichmäßig auf und ab, mit einem
+// Knick an den Umkehrpunkten. Es pulsiert also eher, als dass es schlägt. Davor
+// stand hier ein umgekehrter Sägezahn (harter Einsatz, langsamer Abfall), der
+// mehr nach Flügelschlag klang, aber auch unruhiger war. Die Wellenform steht
+// als eigene Einstellung da unten, weil das eine Entscheidung am Ohr ist und
+// keine, die man auf dem Papier trifft – die Liste dort lädt zum Probieren ein.
 //
 // DER WICHTIGE BEREICH: Unter etwa 20 Hz hört man so eine Modulation als
 // Rhythmus – man könnte die Schläge mitzählen. Darüber verschmelzen sie zu
@@ -272,7 +284,50 @@ const ERFOLG2_LAUTSTAERKE = 0.2;
 // gelegt, dass die Fliege beim Herankommen über diese Grenze läuft: Aus
 // "da flattert etwas hinten" wird "es ist an meinem Ohr", ohne dass wir dafür
 // irgendetwas umschalten müssten.
-const FLIEGE_RAUSCH_ART = 'white'; // 'white' = hell, 'pink' = weicher, 'brown' = dumpf
+const FLIEGE_RAUSCH_ART = 'pink';  // 'white' = hell, 'pink' = weicher, 'brown' = dumpf
+// Die Wellenform des Flatterns:
+//   'sine'      weiches Auf und Ab
+//   'triangle'  wie Sinus, nur mit Knick an den Umkehrpunkten  ← läuft gerade
+//   'sawtooth'  harter Einsatz, dann langsamer Abfall – ein Flügelschlag
+//   'square'    hartes An/Aus, mehr Blinken als Flattern
+//
+// NUR wichtig, wenn man auf 'sawtooth' zurückgeht: Der läuft hier UMGEKEHRT,
+// also hart einsetzend und langsam abfallend. Einen eigenen Namen dafür gibt es
+// nicht – die Umkehrung macht das vertauschte min/max unten im LFO (TEIL 6).
+// Wer den normalen Sägezahn will (langsam ansteigen, hart abreißen), tauscht
+// dort die zwei Zahlen. Für Dreieck und Sinus ist das ohne Bedeutung, die sind
+// symmetrisch: Vorwärts und rückwärts sehen bei ihnen gleich aus.
+const FLIEGE_LFO_ART    = 'triangle';
+
+// ─── Flattern an oder aus ───
+// Steht das hier auf false, läuft das Rauschen der Fliege GLEICHMÄSSIG durch:
+// kein Flügelschlag, nur ein leises, gerichtetes Zischeln. Der LFO wird dann
+// gar nicht erst angeschlossen (TEIL 6), alles andere bleibt wie es ist – die
+// Entfernung regelt weiter Lautstärke und Tiefpass.
+//
+// WARUM es diesen Schalter gibt: Er ist beim Suchen eines Krisselns entstanden,
+// das beim Näherkommen auftrat. Der Verdacht fiel damals auf den LFO – die
+// Ursache lag aber woanders, nämlich in Reglern, die pro Bild ruckartig
+// umgestellt wurden (siehe KOPF_GLAETTUNG_SEK und REGLER_RAMPE_SEK weiter
+// unten). Der Schalter ist trotzdem geblieben, weil er zum Vergleichen nützlich
+// ist: umlegen, sonst nichts anfassen, und man hört die Fliege einmal mit und
+// einmal ohne Bewegung.
+//
+// Für den Fall, dass der Verdacht wiederkommt: Ein LFO kann dieses Problem gar
+// nicht verursachen. Er hängt als AUDIOSIGNAL am Regler und wird deshalb für
+// jedes einzelne Sample gerechnet – 48000 mal pro Sekunde, nicht 60. Selbst der
+// harte Sprung im Sägezahn sitzt damit sauber zwischen zwei Samples.
+const FLIEGE_FLATTERN_AN = true;
+
+// Ohne Flattern muss der Regler, den sonst der LFO bewegt, auf einem festen
+// Wert stehen bleiben. 0.5 ist ungefähr seine mittlere Stellung, die Fliege
+// bleibt also grob gleich laut. ACHTUNG: Ein DURCHGEHENDES Rauschen wirkt
+// trotzdem präsenter als ein pulsierendes – wenn sie dann zu aufdringlich ist,
+// hier oder an FLIEGE_DB_FERN / FLIEGE_DB_NAH zurücknehmen.
+//
+// Solange FLIEGE_FLATTERN_AN oben auf true steht, tut dieser Wert nichts.
+const FLIEGE_RUHE_PEGEL = 0.5;
+
 // Die Flatterrate läuft über DREI Abschnitte, und zwar genau über die, die auch
 // in der Anzeige oben rechts als Zone 1/2/3 stehen. In jedem Abschnitt
 // verdoppelt sich das Tempo:
@@ -296,8 +351,20 @@ const FLIEGE_MITTE_BEI  = 0.5; // Grenze zwischen Zone 1 und 2 (Zone 3 = KUGEL_S
 // der Ferne soll man die Fliege gerade eben hören, wenn man sie direkt anschaut
 // – sie ist dort der einzige Hinweis. Beim Näherkommen zieht sie sich stark
 // zurück, weil dann die Aufnahmen die Arbeit übernehmen.
-const FLIEGE_DB_FERN    = -32;     // Dezibel in der Ferne
-const FLIEGE_DB_NAH     = -52;     // Dezibel nah – da übernehmen die Aufnahmen
+//
+// Beide Werte sind zweimal zusammen gestiegen, und beide Male aus demselben
+// Grund – die Fliege war zu leise, um noch als Wegweiser zu taugen:
+//
+//   +6 dB   beim Wechsel von weißem auf rosa Rauschen. Rosa hat in den Höhen
+//           weniger Energie und ist bei gleicher Einstellung deutlich leiser.
+//   +10 dB  danach noch einmal, nach Gehör.
+//
+// Der Abstand von 20 dB zwischen fern und nah ist dabei beide Male gleich
+// geblieben, nur das ganze Layer sitzt höher. Genau darum sind es zwei Werte
+// und nicht ein Regler: Die Kurve gehört zur Dramaturgie, die Höhe zur
+// Rauschart. Wer die Rauschart wieder ändert, muss hier nachziehen.
+const FLIEGE_DB_FERN    = -16;     // Dezibel in der Ferne
+const FLIEGE_DB_NAH     = -36;     // Dezibel nah – da übernehmen die Aufnahmen
 
 // Auch die Fliege versteckt sich, und zwar noch entschiedener als die
 // Aufnahmen: Schaut man geradeaus, soll sie praktisch weg sein. -30 dB ist
@@ -353,6 +420,34 @@ const LAYER1_DB_NAH  = -12; // Dezibel, wenn sie so nah ist wie erlaubt
 // also: enger, man muss genauer treffen.
 const KUGEL_BLICK_DB_WEG   = -18; // Dezibel Absenkung bei Blick geradeaus
 const KUGEL_BLICK_SCHAERFE = 3;   // größer = engerer Hörkegel
+
+// ─── Zwei Einstellungen gegen das Krisseln ───
+// Ein Lautstärke-Regler, den man RUCKARTIG umstellt, macht ein Knacken – der
+// Klang springt ja von einem Pegel auf den anderen, und so ein Sprung IST ein
+// Klick. Einmal pro Bild passiert das 60 mal pro Sekunde, und aus lauter
+// kleinen Klicks wird ein feines Krisseln. Je lauter der Klang und je größer
+// die Sprünge, desto deutlicher hört man es – also genau dann, wenn die Kugel
+// nah ist und man den Kopf schnell dreht.
+//
+// Dagegen helfen zwei Dinge, und beide stehen hier:
+
+// ERSTENS: Die Kopfwinkel kommen von den AirPods nur etwa 25 mal pro Sekunde,
+// das Bild läuft aber mit 60. Zwei, drei Bilder lang steht der Wert also still
+// und springt dann auf einmal weiter – ein Treppchen statt einer Bewegung. Und
+// jede Stufe dieser Treppe stellt in Resonance neun Regler auf einen Schlag um.
+// Deshalb ziehen wir die Blickrichtung weich nach, statt sie hart zu setzen.
+//
+// Die Zahl ist eine ZEIT: So lange braucht die geglättete Richtung ungefähr,
+// um der echten zu folgen. Sie muss groß genug sein, um die Lücken zwischen
+// zwei Messungen zu füllen, und klein genug, dass der Klang nicht hinter dem
+// Kopf herhängt – über etwa 0.06 Sekunden fängt es an, sich zäh anzufühlen.
+const KOPF_GLAETTUNG_SEK = 0.03;
+
+// ZWEITENS: Alle Regler, die in TEIL 8 pro Bild nachgeführt werden, fahren
+// nicht mehr sprunghaft auf ihren neuen Wert, sondern über diese Zeit dorthin.
+// Aus der Treppe wird eine Rampe – die Klicks verschwinden. Etwas mehr als ein
+// Bild (1/60 s = 0.017 s), damit die Rampen lückenlos ineinander übergehen.
+const REGLER_RAMPE_SEK = 0.03;
 
 // ─── Szene 2: der Hausfink ───
 // Der Kopf wird zum Regler: ganz links = normales Tempo,
@@ -611,6 +706,14 @@ let letzterYaw     = 0; // Stellung der vorigen Messung, für den Schritt
 // Die Kopfwinkel in Radiant (yaw = links/rechts, pitch = nicken, roll = kippen).
 let yaw = 0, pitch = 0, roll = 0;
 
+// Die geglättete Blickrichtung fürs OHR (siehe KOPF_GLAETTUNG_SEK in TEIL 2).
+// Warum ein Pfeil und nicht die geglätteten Winkel: yaw hat hinter dir eine
+// Naht, dort springt er von +180 auf -180 Grad. Würde man diese Zahl glätten,
+// führe der Klang bei jedem Durchgang einmal komplett um den Kopf herum. Der
+// Pfeil hat diese Naht nicht – er zeigt einfach nach hinten und fertig.
+// Startwert (0, 0, -1) ist "geradeaus", denn geradeaus ist im Audio-Raum -Z.
+let blickGlattX = 0, blickGlattY = 0, blickGlattZ = -1;
+
 // Audio-Grundgerüst – wird einmal in TEIL 6 aufgebaut.
 let audioCtx       = null; // die Audio-Zentrale des Browsers
 let resonanceScene = null; // der virtuelle Raum für den 3D-Klang
@@ -630,7 +733,7 @@ const stimme = {};
 //   tempo:    wie schnell sie näher kommt (wird nah am Kopf kleiner)
 //   spieler:  die drei Loops, lautstaerken: je ein Lautstärke-Regler dazu
 //   fliegeRauschen/fliegeLautstaerke: das vierte, erzeugte Layer (siehe TEIL 2)
-//   fliegeTempoLfo: der Sägezahn, der es zerhackt
+//   fliegeTempoLfo: der LFO, der es auf- und abregelt
 //   fliegeFilter: der Tiefpass, der mit der Entfernung aufgeht
 //   auftauchBlende: der Einfade-Regler beim Auftauchen (siehe TEIL 6)
 //   auftauchen: true, solange diese Blende noch hochfährt – so lange bleibt
@@ -641,8 +744,30 @@ const stimme = {};
 // auch erst dort. Ganz weit weg sind beide Kugeln gleich laut, sonst wäre die
 // linke beim Auftauchen schwerer zu finden als die rechte. Die Entfernung ist
 // bei beiden gleich (DIST_NAH), ausgeglichen wird allein über die Lautstärke.
-const kugel1 = { richtung: -1, dist: DIST_FERN, nahDist: DIST_NAH, pegel: -6, tempo: KUGEL_TEMPO_WEIT, kugel3d: null, quelle: null, spieler: [], lautstaerken: [], fliegeRauschen: null, fliegeLautstaerke: null, fliegeTempoLfo: null, fliegeFilter: null, blickDaempfung: null, auftauchBlende: null, auftauchen: false };
-const kugel2 = { richtung:  1, dist: DIST_FERN, nahDist: DIST_NAH, pegel: 0, tempo: KUGEL_TEMPO_WEIT, kugel3d: null, quelle: null, spieler: [], lautstaerken: [], fliegeRauschen: null, fliegeLautstaerke: null, fliegeTempoLfo: null, fliegeFilter: null, blickDaempfung: null, auftauchBlende: null, auftauchen: false };
+//
+// Dazu kommen zwei FEINKORREKTUREN, die nur für eine einzelne Schicht gelten.
+// pegel hebt oder senkt die ganze Kugel; diese beiden greifen gezielt in die
+// Mischung EINER Kugel ein, weil ihre Aufnahmen nun mal unterschiedlich sind:
+//
+//   fliegePegel  auf die Fliege (das erzeugte Layer)
+//   layer3Pegel  auf den Nah-Loop, also lautstaerken[2]
+//
+// Die Fliege steht bei BEIDEN Kugeln auf -4 dB, sie war nach der Anhebung von
+// FLIEGE_DB_FERN/_NAH insgesamt etwas zu präsent. Dass es zweimal derselbe Wert
+// ist, ist also kein Zufall, sondern nur noch nicht zusammengefasst – wer nie
+// eine Kugel einzeln braucht, kann die zwei -4 auch in FLIEGE_DB_FERN/_NAH
+// hineinrechnen und hier wieder auf 0 gehen.
+//
+// Der Nah-Loop dagegen ist wirklich eine Einzelfallkorrektur: Nur Kugel 2
+// bekommt 4 dB mehr. Zusammen mit ihrer leiseren Fliege tritt bei ihr am Ziel
+// die Aufnahme deutlicher hervor und der Wegweiser zurück – die Kugel ist ja
+// schon gefunden, wenn man so weit ist.
+//
+// Beide wirken FLACH, also über die ganze Annäherung gleich stark – anders als
+// pegel, der mit der Nähe einwächst. Sie korrigieren eine Aufnahme, und die
+// klingt aus jeder Entfernung gleich.
+const kugel1 = { richtung: -1, dist: DIST_FERN, nahDist: DIST_NAH, pegel: -6, fliegePegel: -4, layer3Pegel: 0, tempo: KUGEL_TEMPO_WEIT, kugel3d: null, quelle: null, spieler: [], lautstaerken: [], fliegeRauschen: null, fliegeLautstaerke: null, fliegeTempoLfo: null, fliegeFilter: null, blickDaempfung: null, auftauchBlende: null, auftauchen: false };
+const kugel2 = { richtung:  1, dist: DIST_FERN, nahDist: DIST_NAH, pegel: 0, fliegePegel: -4, layer3Pegel: 4, tempo: KUGEL_TEMPO_WEIT, kugel3d: null, quelle: null, spieler: [], lautstaerken: [], fliegeRauschen: null, fliegeLautstaerke: null, fliegeTempoLfo: null, fliegeFilter: null, blickDaempfung: null, auftauchBlende: null, auftauchen: false };
 
 // Der Fink aus Szene 2.
 const fink = { spieler: null, lautstaerke: null, quelle: null, tempo: 1 };
@@ -1125,13 +1250,14 @@ async function initAudio() {
     //
     //   Rauschen → Tiefpass → Flatter-Regler → Hall → Lautstärke → quelle
     //                  ↑              ↑
-    //            Entfernung     fliegeTempoLfo (Sägezahn)
+    //            Entfernung     fliegeTempoLfo (FLIEGE_LFO_ART)
+    //                                  nur wenn FLIEGE_FLATTERN_AN
     //
     // Das Rauschen läuft DURCHGEHEND. Zwei Dinge formen es, und zwar bewusst
-    // getrennt: Der Sägezahn zerhackt es in Flügelschläge – das ist die schnelle
-    // Bewegung. Der Tiefpass dagegen folgt nur der Entfernung und geht über die
+    // getrennt: Der LFO regelt es auf und ab – das ist die schnelle Bewegung.
+    // Der Tiefpass dagegen folgt nur der Entfernung und geht über die
     // ganze Annäherung hinweg langsam auf – das ist die langsame Bewegung.
-    // Beides an denselben Sägezahn zu hängen, hat sich als zu unruhig erwiesen.
+    // Beides an denselben LFO zu hängen, hat sich als zu unruhig erwiesen.
     //
     // WICHTIG: Die Fliege geht an blickDaempfung VORBEI. Sie ist ja das
     // Peilsignal – wenn auch sie verstummen würde, sobald man geradeaus schaut,
@@ -1151,14 +1277,31 @@ async function initAudio() {
     // als Ton hört, sondern als Bewegung. min und max sagen, zwischen welchen
     // zwei Werten er hin und her fährt.
     //
-    // Hier stehen sie ABSICHTLICH verkehrt herum (max zuerst, dann min): Ein
-    // Sägezahn steigt langsam an und fällt hart ab. Andersherum gelesen wird
-    // daraus der harte Einsatz mit langsamem Abfall – ein Flügelschlag eben.
-    // Klingt es bei dir umgekehrt richtiger, tausche einfach die zwei Zahlen.
+    // Sie stehen verkehrt herum (erst 1, dann 0), und das ist Absicht: Tone
+    // rechnet Ausgang = Welle * (max - min) + min, mit max kleiner als min
+    // dreht sich die Kurve also um. Beim Dreieck, das gerade läuft, macht das
+    // keinen Unterschied – es ist symmetrisch, umgedreht sieht es gleich aus.
+    // Wichtig wird es erst, wenn oben wieder 'sawtooth' steht: Der steigt
+    // normalerweise langsam an und fällt hart ab, so herum wird daraus der
+    // harte Einsatz mit langsamem Abfall, also ein Flügelschlag. Einen Wellentyp
+    // "umgekehrter Sägezahn" gibt es in Tone.js nicht, diese zwei Zahlen SIND er.
+    //
+    // Deshalb bleiben sie stehen, obwohl sie im Moment nichts bewirken.
     kugel.fliegeTempoLfo = new Tone.LFO({
-      type: 'sawtooth', frequency: FLIEGE_HZ_FERN, min: 1, max: 0,
+      type: FLIEGE_LFO_ART, frequency: FLIEGE_HZ_FERN, min: 1, max: 0,
     });
-    kugel.fliegeTempoLfo.connect(fliegeFlattern.gain);
+
+    // Hier entscheidet sich, ob es flattert: Nur wenn der LFO an den Regler
+    // ANGESCHLOSSEN wird, bewegt er ihn. Ist FLIEGE_FLATTERN_AN aus, bleibt der
+    // Regler einfach auf einem festen Wert stehen und das Rauschen läuft
+    // gleichmäßig durch. Der LFO wird trotzdem gebaut und gestartet – er hängt
+    // nur an nichts. So bleiben alle anderen Stellen im Code unverändert, und
+    // die Anzeige oben rechts zeigt weiter, welche Rate gerade dran WÄRE.
+    if (FLIEGE_FLATTERN_AN) {
+      kugel.fliegeTempoLfo.connect(fliegeFlattern.gain);
+    } else {
+      fliegeFlattern.gain.value = FLIEGE_RUHE_PEGEL;
+    }
 
     // Der Hall sitzt IM Weg der Fliege, nicht daneben. Dadurch nimmt jedes
     // Ausfaden die Hallfahne gleich mit, statt sie allein weiterklingen zu
@@ -1320,7 +1463,7 @@ function szene1Links() {
 
       for (const spieler of kugel1.spieler) spieler.start();
 
-      // Rauschen und Sägezahn laufen ab jetzt durchgehend – hörbar wird davon
+      // Rauschen und LFO laufen ab jetzt durchgehend – hörbar wird davon
       // nur, was die Regler durchlassen.
       kugel1.fliegeRauschen.start();
       kugel1.fliegeTempoLfo.start();
@@ -1604,11 +1747,34 @@ function tick() {
 
   // Wohin schaue ich gerade? Ein Pfeil der Länge 1, einmal pro Bild berechnet
   // und unten mehrfach benutzt. "Geradeaus" ist im Audio-Raum -Z.
-  const blickX =  Math.sin(yaw) * Math.cos(pitch);
-  const blickY =  Math.sin(pitch);
-  const blickZ = -Math.cos(yaw) * Math.cos(pitch);
+  //
+  // "ziel", weil das erst die ROHE Richtung ist, so wie sie von den AirPods
+  // kommt. Was unten benutzt wird, ist die geglättete – siehe gleich darunter.
+  const zielBlickX =  Math.sin(yaw) * Math.cos(pitch);
+  const zielBlickY =  Math.sin(pitch);
+  const zielBlickZ = -Math.cos(yaw) * Math.cos(pitch);
+
+  // Und jetzt weich hinterher, statt in Stufen (siehe KOPF_GLAETTUNG_SEK).
+  // anteil sagt, wie viel vom Rest des Weges wir in DIESEM Bild zurücklegen.
+  // Er wird aus deltaZeit gerechnet und nicht fest hingeschrieben: Sonst würde
+  // die Glättung auf einem langsameren Rechner träger als auf einem schnellen.
+  const anteil = 1 - Math.exp(-deltaZeit / KOPF_GLAETTUNG_SEK);
+  blickGlattX += (zielBlickX - blickGlattX) * anteil;
+  blickGlattY += (zielBlickY - blickGlattY) * anteil;
+  blickGlattZ += (zielBlickZ - blickGlattZ) * anteil;
+
+  // Beim Nachziehen wird der Pfeil kürzer als 1 – er nimmt ja die Abkürzung
+  // quer durch die Kugel statt außen herum. Also wieder auf Länge 1 bringen,
+  // sonst wäre die Richtung zwar korrekt, aber Resonance rechnet mit der Länge.
+  const blickLaenge = Math.sqrt(blickGlattX * blickGlattX + blickGlattY * blickGlattY + blickGlattZ * blickGlattZ) || 1;
+  const blickX = blickGlattX / blickLaenge;
+  const blickY = blickGlattY / blickLaenge;
+  const blickZ = blickGlattZ / blickLaenge;
 
   // ─── 1. Den Drahtgitter-Kopf auf dem Bildschirm mitdrehen ───
+  // Das Bild bekommt die ROHEN Winkel, nicht die geglätteten: Auf dem Schirm
+  // sieht eine Verzögerung nach Hängen aus, im Ohr dagegen ist genau sie das,
+  // was das Krisseln verhindert. Zwei Aufgaben, zwei Werte.
   kopf3d.setzeKopfDrehung(yaw, pitch, roll);
 
   // ─── 2. Resonance sagen, wohin der Kopf schaut ───
@@ -1661,7 +1827,11 @@ function tick() {
     // Wegweiser hörbar (siehe TEIL 6).
     const blickAnteil   = Math.max(0, blickTreffer);
     const blickSchaerfe = Math.pow(blickAnteil, KUGEL_BLICK_SCHAERFE);
-    kugel.blickDaempfung.volume.value = lerp(KUGEL_BLICK_DB_WEG, 0, blickSchaerfe);
+    // rampTo statt .value: Der Regler FÄHRT über REGLER_RAMPE_SEK auf den neuen
+    // Wert, statt zu springen. Das ist die Stelle, an der man das Krisseln am
+    // deutlichsten los wird – dieser Regler hängt am Kopf, und beim schnellen
+    // Drehen ändert er sich um mehrere Dezibel pro Bild.
+    kugel.blickDaempfung.volume.rampTo(lerp(KUGEL_BLICK_DB_WEG, 0, blickSchaerfe), REGLER_RAMPE_SEK);
 
     // Die drei Loops kommen nacheinander dazu: der Fern-Loop ist immer zu
     // hören, der mittlere ab 10 % Nähe, der nahe ab 30 %. Die Werte sind
@@ -1674,20 +1844,23 @@ function tick() {
 
     // pegelJetzt kommt überall dazu – damit lässt sich eine ganze Kugel
     // leiser stellen, ohne die Kurven anzufassen (siehe TEIL 3).
-    kugel.lautstaerken[0].volume.value = lerp(LAYER1_DB_FERN, LAYER1_DB_NAH, naehe) + pegelJetzt;
+    kugel.lautstaerken[0].volume.rampTo(lerp(LAYER1_DB_FERN, LAYER1_DB_NAH, naehe) + pegelJetzt, REGLER_RAMPE_SEK);
 
-    if (naehe > 0.1) kugel.lautstaerken[1].volume.value = lerp(-30, -6, (naehe - 0.1) / 0.75) + pegelJetzt;
+    if (naehe > 0.1) kugel.lautstaerken[1].volume.rampTo(lerp(-30, -6, (naehe - 0.1) / 0.75) + pegelJetzt, REGLER_RAMPE_SEK);
     else             kugel.lautstaerken[1].volume.value = -Infinity;
 
     // Der Nah-Loop liegt 6 dB über dem mittleren (-24 bis 0 statt -30 bis -6).
     // Er ist der Klang, für den die ganze Sucherei gemacht wurde – ganz am Ende
-    // darf er die anderen beiden überstrahlen.
-    if (naehe > 0.3) kugel.lautstaerken[2].volume.value = lerp(-24, 0, (naehe - 0.3) / 0.45) + pegelJetzt;
+    // darf er die anderen beiden überstrahlen. Bei Kugel 2 sind es sogar 10 dB,
+    // das kommt aus ihrem layer3Pegel (siehe TEIL 3).
+    if (naehe > 0.3) kugel.lautstaerken[2].volume.rampTo(lerp(-24, 0, (naehe - 0.3) / 0.45) + pegelJetzt + kugel.layer3Pegel, REGLER_RAMPE_SEK);
     else             kugel.lautstaerken[2].volume.value = -Infinity;
 
     // Das vierte Layer: die Fliege. Hier wird nichts ausgelöst – das Rauschen
-    // läuft ja durch. Wir verändern nur, wie schnell die zwei Sägezähne es
-    // zerhacken.
+    // läuft ja durch. Wir verändern nur, wie schnell der LFO es auf- und
+    // abregelt. Steht FLIEGE_FLATTERN_AN auf false, hängt der LFO an nichts:
+    // Die Rate wird dann zwar weiter ausgerechnet und angezeigt, hörbar ist
+    // sie nicht.
     //
     // Zwei Dinge bestimmen die Flatterrate. Erstens die Entfernung – die ändert
     // sich langsam. Zweitens dein Blick – der ändert sich sofort. Deshalb
@@ -1708,6 +1881,12 @@ function tick() {
 
     const flatterRate = grundRate * lerp(FLIEGE_BLICK_AB, FLIEGE_BLICK_DRAUF, blickAnteil);
 
+    // Der einzige Regler in TEIL 8, der noch hart gesetzt wird statt zu rampen
+    // (siehe REGLER_RAMPE_SEK) – und das ist hier richtig so: Bei einer
+    // LAUTSTÄRKE macht ein Sprung einen Klick, weil der Klang von einem Pegel
+    // auf den anderen springt. Bei einem TEMPO gibt es nichts zu springen. Der
+    // LFO schwingt einfach ab dem nächsten Moment schneller weiter, genau dort,
+    // wo er gerade steht.
     kugel.fliegeTempoLfo.frequency.value = flatterRate;
 
     // Für die Anzeige mitschreiben. Die drei Zonen sind die Abschnitte der
@@ -1728,7 +1907,7 @@ function tick() {
     // Die Rechnung funktioniert in beide Richtungen – wäre FERN größer als NAH,
     // würde filterOktaven einfach negativ und der Filter führe zu.
     const filterOktaven = Math.log2(FLIEGE_FILTER_NAH_HZ / FLIEGE_FILTER_FERN_HZ);
-    kugel.fliegeFilter.frequency.value = FLIEGE_FILTER_FERN_HZ * Math.pow(2, filterOktaven * naehe);
+    kugel.fliegeFilter.frequency.rampTo(FLIEGE_FILTER_FERN_HZ * Math.pow(2, filterOktaven * naehe), REGLER_RAMPE_SEK);
 
     // Zwei Absenkungen addieren sich hier: die aus der Entfernung und die aus
     // dem Blick. In Dezibel darf man addieren – zwei Regler hintereinander
@@ -1739,9 +1918,14 @@ function tick() {
     // kugel.pegel kommt bewusst NICHT dazu: Die Fliege ist erzeugt und nicht
     // aufgenommen, sie klingt auf beiden Seiten gleich – anders als die linke
     // Aufnahme, die deshalb 6 dB Korrektur bekommt.
-    kugel.fliegeLautstaerke.volume.value =
+    //
+    // kugel.fliegePegel dagegen schon. Der ist genau für den Fall da, dass eine
+    // einzelne Kugel die Fliege doch anders braucht, ohne dass sich am Rauschen
+    // selbst etwas ändert (siehe TEIL 3).
+    kugel.fliegeLautstaerke.volume.rampTo(
         lerp(FLIEGE_DB_FERN, FLIEGE_DB_NAH, naehe)
-      + lerp(FLIEGE_BLICK_DB_WEG, 0, blickSchaerfe);
+      + lerp(FLIEGE_BLICK_DB_WEG, 0, blickSchaerfe)
+      + kugel.fliegePegel, REGLER_RAMPE_SEK);
 
     // Im letzten Drittel zieht die Kugel an. sogAnteil zählt dieses Drittel noch
     // einmal von 0 bis 1 durch: bei KUGEL_SOG_AB fängt es bei 0 an, ganz am Ziel
@@ -1768,7 +1952,7 @@ function tick() {
 
       spaeter(() => {
         for (const spieler of kugel.spieler) spieler.stop();
-        // Auch Rauschen und Sägezahn anhalten – sie liefen sonst stumm weiter
+        // Auch Rauschen und LFO anhalten – sie liefen sonst stumm weiter
         // und würden dauerhaft Rechenzeit fressen.
         kugel.fliegeRauschen.stop();
         kugel.fliegeTempoLfo.stop();
@@ -1864,8 +2048,10 @@ function tick() {
       }
 
       // Pegel (0…1) in Dezibel: 1 → 0 dB, 0.5 → -6 dB, fast 0 → ganz aus.
+      // rampTo aus demselben Grund wie bei den Kugeln (siehe REGLER_RAMPE_SEK):
+      // ein pro Bild umgestellter Regler knackt, ein fahrender nicht.
       if (instrument.pegel > 0.001) {
-        instrument.lautstaerke.volume.value = 20 * Math.log10(instrument.pegel);
+        instrument.lautstaerke.volume.rampTo(20 * Math.log10(instrument.pegel), REGLER_RAMPE_SEK);
       } else {
         instrument.lautstaerke.volume.value = -Infinity;
       }
@@ -1891,7 +2077,7 @@ function tick() {
     `dist &nbsp;${angezeigteKugel.dist.toFixed(2)} m<br>` +
     `naehe ${anzeigeNaehe.toFixed(2)}<br>` +
     `zone &nbsp;${anzeigeZone}<br>` +
-    `lfo &nbsp;&nbsp;${anzeigeFlatterHz.toFixed(1)} Hz<br>` +
+    `lfo &nbsp;&nbsp;${anzeigeFlatterHz.toFixed(1)} Hz${FLIEGE_FLATTERN_AN ? '' : ' (aus)'}<br>` +
     `tempo ${fink.tempo.toFixed(2)}<br>` +
     `ctx &nbsp;&nbsp;${audioCtx ? audioCtx.state : '–'}`;
 
@@ -1982,6 +2168,12 @@ function beiKopfhoererAb() {
     kugel.fliegeLautstaerke.volume.value = -Infinity;
     kugel.fliegeRauschen.stop();
     kugel.fliegeTempoLfo.stop();
+
+    // Auch hier abbrechen: Seit TEIL 8 diesen Regler FÄHRT statt ihn zu setzen
+    // (siehe REGLER_RAMPE_SEK), kann eine Fahrt noch unterwegs sein, wenn der
+    // Kopfhörer abgesetzt wird. Sie würde unseren Reset-Wert sonst gleich
+    // wieder überschreiben.
+    kugel.blickDaempfung.volume.cancelScheduledValues(0);
     kugel.blickDaempfung.volume.value = KUGEL_BLICK_DB_WEG;
 
     // Die Auftauch-Blende wieder ganz zu – die nächste Runde soll erneut aus
@@ -1991,7 +2183,7 @@ function beiKopfhoererAb() {
     kugel.auftauchen = false;
 
     kugel.dist  = DIST_FERN;
-    kugel.tempo = 0.8;
+    kugel.tempo = KUGEL_TEMPO_WEIT; // dieselbe Zahl wie beim ersten Aufbau
     kugel.quelle.setPosition(kugel.richtung * DIST_FERN, 0, 0);
     kugel.kugel3d.visible = false;
   }
@@ -2032,7 +2224,7 @@ function beiKopfhoererAb() {
 
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  TEIL 10 – HOCHFAHREN UND TASTEN ZUM TESTEN
+//  TEIL 10 – HOCHFAHREN UND DIE RESET-TASTE
 // ═══════════════════════════════════════════════════════════════════════════
 
 // In der Ausstellung startet Chrome mit einem besonderen Flag (siehe start.sh),
@@ -2059,35 +2251,11 @@ async function beimErstenKlick() {
 window.addEventListener('click', beimErstenKlick);
 window.addEventListener('keydown', beimErstenKlick);
 
-// Tasten zum Testen ohne AirPods:
-//   r = aktuelle Kopfhaltung als "geradeaus" speichern
-//   h = Kopfhörer aufsetzen bzw. ablegen simulieren
+// Die einzige Taste: "r" speichert die aktuelle Kopfhaltung als "geradeaus".
+// Man braucht sie, weil die AirPods ihre Nullstellung selbst festlegen und die
+// selten dorthin zeigt, wo man gerade sitzt.
 window.addEventListener('keydown', (ereignis) => {
   if (ereignis.key === 'r') setzeNullstellung();
-
-  if (ereignis.key === 'h') {
-    kopfhoererAuf = !kopfhoererAuf;
-    if (kopfhoererAuf) {
-      // Diese zwei Zeilen sind nötig, falls nebenbei die echte Bridge läuft:
-      // sonst würde der AB_TIMEOUT die Simulation sofort wieder beenden.
-      letzteBewegung = performance.now();
-      vergleichsYaw = yaw;
-      beiKopfhoererAuf();
-    } else {
-      beiKopfhoererAb();
-    }
-  }
-
-  // "1" und "2" spielen die Erfolgsklänge allein ab – ohne die ausfadende
-  // Kugel daneben. So hört man, wie sie wirklich im Raum stehen, statt sie über
-  // dem Rest der Szene beurteilen zu müssen. Die Lautstärke ist dieselbe wie in
-  // der Experience.
-  if (ereignis.key === '1' && audioBereit) spieleBettEinmal(erfolg1, ERFOLG1_LAUTSTAERKE);
-  if (ereignis.key === '2' && audioBereit) spieleBettEinmal(erfolg2, ERFOLG2_LAUTSTAERKE);
-
-  // "e" liegt zusätzlich auf dem zweiten – er ist der, den man beim Einstellen
-  // am häufigsten hört, und die Taste liegt bequemer als die Ziffer.
-  if (ereignis.key === 'e' && audioBereit) spieleBettEinmal(erfolg2, ERFOLG2_LAUTSTAERKE);
 });
 
 // Mit "?auto" in der Adresszeile (http://localhost:3000/?auto) simulieren wir

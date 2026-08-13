@@ -82,9 +82,9 @@ SOUND:  [s1_ineractiveSound1_distantLoop_(mono).wav]      (4.0 s)
                Anfang an mit und kommen beim Näherkommen
                nacheinander dazu: erst „distant", dann „middle",
                ganz nah auch „near".
-    [Synth]    Dazu ein VIERTES Layer, die „Fliege": weißes
-               Rauschen, zerhackt von einem Sägezahn. Keine
-               Datei — es entsteht live in Tone.js. Es ist das
+    [Synth]    Dazu ein VIERTES Layer, die „Fliege": rosa
+               Rauschen, auf- und abgeregelt von einem Dreieck.
+               Keine Datei — es entsteht live in Tone.js. Es ist das
                Peilsignal: Je näher die Kugel, desto schneller
                flattert es (1 → 8 Hz). Beim Wegschauen wird es
                nur träger, nie leiser.

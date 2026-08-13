@@ -30,11 +30,12 @@ Die Audio-Dateien liegen **nicht im Repo** (`*.wav` ist ausgeschlossen, rund
 
 | Taste / Parameter | Wirkung |
 |---|---|
-| `h` | Aufsetzen bzw. Ablegen simulieren – der ganze Ablauf ohne AirPods |
 | `r` | Blickrichtung neu kalibrieren („geradeaus" neu setzen) |
-| `1` / `2` | Erfolgsklang der ersten bzw. zweiten Kugel allein abspielen |
-| `e` | dasselbe wie `2` – liegt bequemer, den hört man beim Einstellen am häufigsten |
 | `?auto` in der Adresszeile | startet die Experience direkt nach dem Laden |
+
+`r` ist die einzige Taste. Es gab einmal mehr davon (Aufsetzen simulieren,
+Erfolgsklänge einzeln abspielen); die sind raus, weil sie im Betrieb nur
+danebenliegen konnten.
 
 Oben in der Ecke steht eine kleine Anzeige, die beim Einstellen hilft. Sie
 steuert nichts:
@@ -49,7 +50,7 @@ KH      Kopfhörer auf oder ab
 dist    Entfernung der aktuellen Kugel in Metern
 naehe   0 = ganz weit weg, 1 = am Ohr
 zone    1 fern / 2 mitte / 3 SOG – die drei Abschnitte der Annäherung
-lfo     aktuelle Flatterrate der Fliege in Hz
+lfo     aktuelle Flatterrate der Fliege in Hz („(aus)" = Flattern abgeschaltet)
 tempo   Abspielgeschwindigkeit des Finken
 ctx     Zustand der Audio-Zentrale (running / suspended)
 ```
@@ -85,10 +86,10 @@ TEIL 6   Audio laden und verkabeln (initAudio)
 TEIL 7   Der Ablauf – eine Funktion pro Szene
 TEIL 8   Jede Frame – hier passiert die Interaktion (tick)
 TEIL 9   Kopfhörer auf und ab – Start und kompletter Reset
-TEIL 10  Hochfahren und Tasten zum Testen
+TEIL 10  Hochfahren und die Reset-Taste
 ```
 
-Drei Regeln ziehen sich durch die ganze Datei:
+Vier Regeln ziehen sich durch die ganze Datei:
 
 1. **Geladen wird nur in TEIL 6, gespielt nur in TEIL 7 und 8.** Eine Datei
    mitten in einer Szene zu laden würde ruckeln.
@@ -98,6 +99,9 @@ Drei Regeln ziehen sich durch die ganze Datei:
 3. **Eine Szene macht alles in ihrer eigenen Funktion.** Nur was wirklich
    überall gebraucht wird, steht im Werkzeugkasten – das ist Absicht, nicht
    Nachlässigkeit: Man soll beim Lesen nicht hin- und herspringen müssen.
+4. **Was pro Bild nachgeregelt wird, fährt** (`rampTo`) **und springt nicht**
+   (`.value =`). Ein Sprung in der Lautstärke ist ein Klick; 60 davon pro
+   Sekunde hört man als Krisseln.
 
 Der Ablauf hängt so zusammen:
 
@@ -126,16 +130,41 @@ drei davon sind Aufnahmen:
 | `nearLoop` | Aufnahme | ab 30 % Nähe – der Klang, für den die Sucherei gemacht wurde |
 | „die Fliege" | **erzeugt**, nicht aufgenommen | durchgehend |
 
-Die Fliege entsteht live in Tone.js: weißes Rauschen, das von einem Sägezahn
-zerhackt wird – ein Flattern, wie ein Insekt, das um den Kopf kreist. Je näher
+Die Fliege entsteht live in Tone.js: rosa Rauschen, das von einem LFO auf- und
+abgeregelt wird – ein Flattern, wie ein Insekt, das um den Kopf kreist. Je näher
 die Kugel kommt, desto schneller flattert es (1 → 8 Hz über drei Abschnitte),
 und ein Tiefpass geht dabei auf, weil Fernes in echt auch dumpfer klingt.
+
+Die Wellenform steht in `FLIEGE_LFO_ART` und ist eine Entscheidung am Ohr:
+Zur Zeit ein Dreieck (gleichmäßiges Pulsieren), davor ein umgekehrter Sägezahn
+(harter Einsatz, langsamer Abfall – mehr Flügelschlag, aber unruhiger).
+
+Das Flattern lässt sich mit `FLIEGE_FLATTERN_AN` (TEIL 2) abschalten – dann
+läuft das Rauschen gleichmäßig durch, Entfernung, Lautstärke und Tiefpass
+arbeiten unverändert weiter. Der Schalter ist beim Suchen eines Krisselns
+entstanden und steht auf **an**: Die Ursache lag nicht am Flattern, sondern an
+ruckartig gesetzten Reglern (siehe unten). Zum Vergleichen ist er trotzdem
+praktisch.
 
 Der wichtige Unterschied: Die drei Aufnahmen werden stark abgesenkt, solange
 man geradeaus schaut – die Kugel versteckt sich, das Suchen ist die Aufgabe.
 Die Fliege macht das **nicht** mit. Sie ist das Peilsignal; verstummte auch sie,
 wüsste man gar nicht, wohin man sich drehen soll. Beim Wegschauen wird sie nur
 träger, nicht leiser.
+
+**Warum es krisselte.** Stellt man einen Lautstärke-Regler ruckartig um, springt
+der Klang von einem Pegel auf den anderen – und so ein Sprung ist ein Klick.
+Einmal pro Bild sind das 60 Klicks pro Sekunde, zusammen ein feines Krisseln.
+Man hört es dann am deutlichsten, wenn der Klang laut ist (Kugel nah) und die
+Sprünge groß sind (Kopf schnell gedreht). Zwei Stellen waren betroffen:
+
+- Alle Regler, die `tick()` pro Bild nachführt. Sie fahren jetzt über
+  `REGLER_RAMPE_SEK` auf ihren neuen Wert, statt zu springen.
+- Die Blickrichtung selbst. Die AirPods messen nur etwa 25 mal pro Sekunde, das
+  Bild läuft mit 60 – der Wert steht also zwei, drei Bilder still und springt
+  dann. Jede dieser Stufen stellt in Resonance neun Regler der Drehmatrix auf
+  einen Schlag um. Die Richtung wird deshalb über `KOPF_GLAETTUNG_SEK` weich
+  nachgezogen.
 
 **Wie eine Kugel auftaucht.** Ganz am Ende der Kette, kurz vor dem Raum, sitzt
 ein eigener Regler: die `auftauchBlende`. Sie fährt die **ganze** Kugel –

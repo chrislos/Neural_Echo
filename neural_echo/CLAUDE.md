@@ -63,8 +63,9 @@ TEIL 8   tick() – ONE requestAnimationFrame loop (starteTick() guards against
 TEIL 9   beiKopfhoererAuf() / beiKopfhoererAb() – the latter is the full reset
          and sets laeuft=false FIRST so pending onstop callbacks and timeouts
          can't fire scenes, then stops everything
-TEIL 10  boot + dev keys ('h' simulates on/off, 'r' recalibrates, '1'/'2'/'e'
-         audition the success sounds, URL param '?auto' auto-starts)
+TEIL 10  boot + the ONE key, 'r' (recalibrate). URL param '?auto' auto-starts.
+         Do not add audition/simulation keys back – they were removed on
+         purpose; use '?auto' or the real AirPods instead.
 ```
 
 Deliberately FLAT: a scene does its own work inside its own function rather
@@ -141,13 +142,38 @@ gitignored `standort.conf`.
   damping during the fade caused an audible 18 dB jump for anyone already
   looking at the ball.
 - Each ball has four layers: three recorded loops plus the "Fliege", a
-  synthesized noise/sawtooth layer built in initAudio(). The Fliege bypasses
+  synthesized layer built in initAudio(): noise shaped by an LFO
+  (`FLIEGE_RAUSCH_ART` / `FLIEGE_LFO_ART`, currently pink + triangle – both were
+  picked by ear, so treat them as tunables, not as facts). The LFO's `min`/`max`
+  are deliberately swapped (1/0): that inversion is what turns a sawtooth into a
+  wing beat, and Tone has no "reverse sawtooth" type. It does nothing under the
+  current symmetric triangle – leave it in place anyway, it is what makes
+  `'sawtooth'` usable again. `FLIEGE_FLATTERN_AN`
+  switches the modulation off entirely (currently ON; the switch exists as an
+  A/B aid from a crackle hunt that turned out to be about stepped params, not
+  the LFO); when off, the LFO is still built and started, it just isn't
+  connected, so the readout keeps showing the rate it would run at. The
+  Fliege bypasses
   `blickDaempfung` on purpose – it is the homing signal and must stay audible
   when looking away, only getting slower, never quieter.
+- Per-ball level trims live on the ball object in TEIL 3, not in TEIL 2: `pegel`
+  (whole ball, fades in with proximity) plus the flat per-layer `fliegePegel`
+  and `layer3Pegel`. They exist because the two balls are different RECORDINGS;
+  reach for one of them rather than bending the shared curves in TEIL 2, which
+  would move both balls.
+- Anything tick() nudges every frame must RAMP, never be assigned: use
+  `param.rampTo(x, REGLER_RAMPE_SEK)` instead of `param.value = x`. A per-frame
+  `.value =` is a hard step in gain, i.e. a click 60× a second, heard as fine
+  crackle — loudest when the source is close and the head turns fast. The
+  `-Infinity` "hard off" branches keep `.value =` (they are silent anyway).
+  For the same reason the look direction is smoothed (`KOPF_GLAETTUNG_SEK`)
+  before it reaches Resonance: AirPods deliver ~25 Hz into a 60 Hz loop, and
+  every step of that staircase rewrites nine rotation-matrix gains inside
+  Omnitone — all of which the library sets as bare `.value =`. Smoothing the
+  look VECTOR, not yaw/pitch: yaw has a ±180° seam that would spin the field.
 - Catching a ball plays a per-ball ambisonic success bed (`erfolg1`/`erfolg2`)
   at `ERFOLG1_LAUTSTAERKE` / `ERFOLG2_LAUTSTAERKE`. Two different values
-  because the two recordings differ in level, not in importance. Keys '1',
-  '2' and 'e' audition them standalone.
+  because the two recordings differ in level, not in importance.
 - Scene 2 runs two ambisonic beds at once: `nature2` is slowed together with
   the finch, `natureFx` deliberately stays at original speed. Only ever touch
   `nature2.quelle.playbackRate`.
