@@ -12,6 +12,19 @@ In der Ausstellung läuft das Ganze ohne Personal: Der Rechner startet die
 Experience beim Login von selbst, sie beginnt, sobald jemand den Kopfhörer
 aufsetzt, und setzt sich beim Ablegen komplett zurück.
 
+![Die Experience im Browser: der Drahtgitter-Kopf in der Mitte, rechts oben die
+Kontrollanzeige](neural_echo/concept/screenshot.png)
+
+Viel zu sehen gibt es absichtlich nicht – das Stück findet in den Ohren statt.
+Der Drahtgitter-Kopf in der Mitte ist der eigene: Er dreht sich mit, und daran
+erkennt man beim Aufbau sofort, ob das Headtracking sauber läuft.
+
+Das Bild zeigt den **Entwickler-Blick** unter `localhost:3000`. In der
+Ausstellung startet Chrome mit `--kiosk`, also ohne Fensterrahmen und
+Adresszeile. Die Kontrollanzeige rechts oben steuert nichts, sie hilft beim
+Einstellen – was die einzelnen Zeilen bedeuten, steht in der
+[README der Web-App](neural_echo/README.md#tasten-und-anzeige).
+
 ---
 
 ## Was passiert
@@ -80,6 +93,8 @@ neural_echo/
   concept/
     skript.txt             das Skript: jeder Satz mit zugehöriger Audio-Datei
     scope.jpg              Konzeptskizze
+    screenshot.png         die Experience im Browser (Bild in dieser README)
+    spatial_audio.jpeg     das Ambisonics-Mikrofon im Feld (Bild in dieser README)
   start.sh                 startet die ganze Installation (Bridge, Watchdog, Vite, Chrome)
   watchdog_airpods.sh      verbindet die AirPods neu, wenn sie sich abschalten
   tools/blueutil           Bluetooth-Werkzeug für den Watchdog (arm64, liegt fertig dabei)
@@ -89,6 +104,21 @@ neural_echo/
 ---
 
 ## Wichtig: Die Audio-Dateien liegen NICHT im Repo
+
+![Ein kugelförmiges Ambisonics-Mikrofon auf einem Stativ, mitten in einer hohen
+Sommerwiese](neural_echo/concept/spatial_audio.jpeg)
+
+So entstehen die **Ambisonics-Betten**: Ein Mikrofon mit Kapseln in alle
+Richtungen nimmt nicht eine Blickrichtung auf, sondern den ganzen Raum auf
+einmal. Beim Abspielen wird daraus zurückgerechnet, was an jedes Ohr gehört –
+und weil das erst beim Hören passiert, dreht sich die Wiese mit, wenn man den
+Kopf dreht. Genau das ist der Unterschied zu einer Stereo-Aufnahme, die immer
+gleich bleibt, egal wohin man schaut.
+
+Diese Betten liegen unter allem: die Wiese in Szene 1, die zwei Naturspuren in
+Szene 2, die Swooshes und die Erfolgsklänge. Sie kommen aus keiner bestimmten
+Richtung, sondern von überall – deshalb hört man sofort den Unterschied, wenn
+danach eine einzelne Klangkugel aus genau einer Richtung auftaucht.
 
 `*.wav` ist in der `.gitignore` ausgeschlossen – zusammen sind es rund
 **850 MB**, davon allein 390 MB Ambisonics. Wer das Repo klont, bekommt Code,

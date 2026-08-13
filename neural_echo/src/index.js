@@ -723,21 +723,9 @@ let audioBereit    = false;
 // Alle Sprecherinnen-Aufnahmen. Sie sind mono und laufen durch Tone.js.
 const stimme = {};
 
-// Die zwei Klangkugeln aus Szene 1.
-//   richtung: -1 = links im Raum, +1 = rechts im Raum
-//   dist:     aktuelle Entfernung in Metern
-//   nahDist:  bis hierher darf sie heran – dann gilt sie als eingefangen
-//   pegel:    Korrektur in Dezibel (negativ = leiser). Wirkt NICHT überall
-//             gleich, sondern wächst mit der Nähe: ganz weit weg gar nicht,
-//             am Ohr voll (siehe TEIL 8)
-//   tempo:    wie schnell sie näher kommt (wird nah am Kopf kleiner)
-//   spieler:  die drei Loops, lautstaerken: je ein Lautstärke-Regler dazu
-//   fliegeRauschen/fliegeLautstaerke: das vierte, erzeugte Layer (siehe TEIL 2)
-//   fliegeTempoLfo: der LFO, der es auf- und abregelt
-//   fliegeFilter: der Tiefpass, der mit der Entfernung aufgeht
-//   auftauchBlende: der Einfade-Regler beim Auftauchen (siehe TEIL 6)
-//   auftauchen: true, solange diese Blende noch hochfährt – so lange bleibt
-//               die Kugel stehen, obwohl der Blick schon zählt (siehe TEIL 8)
+// Die zwei Klangkugeln aus Szene 1. Was die einzelnen Felder bedeuten, steht
+// unten direkt an ihnen – hier davor nur das, was man an den Zeilen selbst
+// nicht sehen kann.
 //
 // Warum die linke Kugel einen eigenen pegel hat: Ihre Aufnahme drückt deutlich
 // mehr als die rechte – aber erst, wenn sie nah ist. Deshalb wirken die -6 dB
@@ -758,16 +746,70 @@ const stimme = {};
 // eine Kugel einzeln braucht, kann die zwei -4 auch in FLIEGE_DB_FERN/_NAH
 // hineinrechnen und hier wieder auf 0 gehen.
 //
-// Der Nah-Loop dagegen ist wirklich eine Einzelfallkorrektur: Nur Kugel 2
-// bekommt 4 dB mehr. Zusammen mit ihrer leiseren Fliege tritt bei ihr am Ziel
-// die Aufnahme deutlicher hervor und der Wegweiser zurück – die Kugel ist ja
-// schon gefunden, wenn man so weit ist.
+// Beim Nah-Loop gehen die zwei Kugeln dagegen wirklich auseinander: Kugel 2
+// bekommt 4 dB mehr, Kugel 1 genau so viel weniger. Das sind acht Dezibel
+// Unterschied und damit die deutlichste Einzelkorrektur der ganzen Szene – sie
+// steht hier, weil es zwei verschiedene Aufnahmen sind und nicht, weil die eine
+// Kugel wichtiger wäre. Wer eine der beiden neu einspielt, fängt hier bei 0 an
+// und stellt neu nach Gehör ein.
 //
 // Beide wirken FLACH, also über die ganze Annäherung gleich stark – anders als
 // pegel, der mit der Nähe einwächst. Sie korrigieren eine Aufnahme, und die
 // klingt aus jeder Entfernung gleich.
-const kugel1 = { richtung: -1, dist: DIST_FERN, nahDist: DIST_NAH, pegel: -6, fliegePegel: -4, layer3Pegel: 0, tempo: KUGEL_TEMPO_WEIT, kugel3d: null, quelle: null, spieler: [], lautstaerken: [], fliegeRauschen: null, fliegeLautstaerke: null, fliegeTempoLfo: null, fliegeFilter: null, blickDaempfung: null, auftauchBlende: null, auftauchen: false };
-const kugel2 = { richtung:  1, dist: DIST_FERN, nahDist: DIST_NAH, pegel: 0, fliegePegel: -4, layer3Pegel: 4, tempo: KUGEL_TEMPO_WEIT, kugel3d: null, quelle: null, spieler: [], lautstaerken: [], fliegeRauschen: null, fliegeLautstaerke: null, fliegeTempoLfo: null, fliegeFilter: null, blickDaempfung: null, auftauchBlende: null, auftauchen: false };
+const kugel1 = {
+  // Wo sie steht und wie sie sich bewegt
+  richtung: -1,               // -1 = links im Raum, +1 = rechts
+  dist:     DIST_FERN,        // aktuelle Entfernung in Metern
+  nahDist:  DIST_NAH,         // so nah darf sie heran – dann ist sie eingefangen
+  tempo:    KUGEL_TEMPO_WEIT, // wie schnell sie kommt; TEIL 8 setzt das pro Bild
+
+  // Pegelkorrekturen, alle in Dezibel (negativ = leiser)
+  pegel:       -6,            // die ganze Kugel, wächst mit der Nähe ein
+  fliegePegel: -4,            // nur die Fliege, flach
+  layer3Pegel: -4,            // nur der Nah-Loop, flach
+
+  // Die Bauteile. Sie entstehen erst in TEIL 6 und stehen hier nur, damit man
+  // an EINER Stelle sieht, woraus eine Kugel überhaupt besteht.
+  kugel3d:           null,    // der sichtbare Punkt (3dhead.js)
+  quelle:            null,    // ihre Stelle im Resonance-Raum
+  spieler:           [],      // die drei aufgenommenen Loops
+  lautstaerken:      [],      // je ein Regler dazu
+  fliegeRauschen:    null,    // das vierte, erzeugte Layer (siehe TEIL 2)
+  fliegeLautstaerke: null,
+  fliegeTempoLfo:    null,    // regelt das Rauschen auf und ab
+  fliegeFilter:      null,    // Tiefpass, geht mit der Entfernung auf
+  blickDaempfung:    null,    // senkt die Aufnahmen beim Wegschauen ab
+  auftauchBlende:    null,    // fährt die GANZE Kugel aus der Stille hoch
+
+  auftauchen: false,          // true, solange die Blende noch hochfährt – so
+                              // lange bleibt die Kugel stehen, obwohl der
+                              // Blick schon zählt (siehe TEIL 8)
+};
+
+// Die rechte Kugel. Gleicher Aufbau, andere Zahlen – siehe oben, warum.
+const kugel2 = {
+  richtung:  1,
+  dist:     DIST_FERN,
+  nahDist:  DIST_NAH,
+  tempo:    KUGEL_TEMPO_WEIT,
+
+  pegel:        0,
+  fliegePegel: -4,
+  layer3Pegel:  4,
+
+  kugel3d:           null,
+  quelle:            null,
+  spieler:           [],
+  lautstaerken:      [],
+  fliegeRauschen:    null,
+  fliegeLautstaerke: null,
+  fliegeTempoLfo:    null,
+  fliegeFilter:      null,
+  blickDaempfung:    null,
+  auftauchBlende:    null,
+
+  auftauchen: false,
+};
 
 // Der Fink aus Szene 2.
 const fink = { spieler: null, lautstaerke: null, quelle: null, tempo: 1 };
@@ -1851,8 +1893,8 @@ function tick() {
 
     // Der Nah-Loop liegt 6 dB über dem mittleren (-24 bis 0 statt -30 bis -6).
     // Er ist der Klang, für den die ganze Sucherei gemacht wurde – ganz am Ende
-    // darf er die anderen beiden überstrahlen. Bei Kugel 2 sind es sogar 10 dB,
-    // das kommt aus ihrem layer3Pegel (siehe TEIL 3).
+    // darf er die anderen beiden überstrahlen. Wie weit, sagt layer3Pegel: bei
+    // Kugel 2 sind es 10 dB, bei Kugel 1 nur 2 (siehe TEIL 3).
     if (naehe > 0.3) kugel.lautstaerken[2].volume.rampTo(lerp(-24, 0, (naehe - 0.3) / 0.45) + pegelJetzt + kugel.layer3Pegel, REGLER_RAMPE_SEK);
     else             kugel.lautstaerken[2].volume.value = -Infinity;
 
