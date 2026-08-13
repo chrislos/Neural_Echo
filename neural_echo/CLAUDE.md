@@ -107,7 +107,7 @@ copy. Two exhibition Macs run the same commit and differ only in their
 gitignored `standort.conf`.
 
 - Language is DATA, not control flow. Everything language-dependent lives in
-  the `SPRACHEN` table in TEIL 1 (folder, three dB trims, the on-screen hint).
+  the `SPRACHEN` table in TEIL 1 (folder, five dB trims, the on-screen hint).
   Never add `if (SPRACHE === 'EN')` to a scene – that reintroduces the
   double-maintenance problem the table exists to prevent.
 - Scene transitions hang off `.onstop`, i.e. the END of a voice file, so they

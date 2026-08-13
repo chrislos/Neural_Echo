@@ -284,6 +284,8 @@ TEIL 1:
 |---|---|
 | `ordner` | `/voices/DE/` oder `/voices/EN/` |
 | `pegelS1Links` | dB-Korrektur für „Hey, hier bin ich" |
+| `pegelS2Teil1` | dB-Korrektur für „Jetzt bist du ja schon Profi…" |
+| `pegelS2Teil2` | dB-Korrektur für „Hier links hörst du…" (kommt von links) |
 | `pegelS2Teil3` | dB-Korrektur für „Um dessen Komplexität…" (spricht aus 6 m) |
 | `pegelS2Ende` | dB-Korrektur für „Hör zum Schluss…" (liegt über der Szene) |
 | `hinweis` | der Text unten im Bild – das Einzige, was ein Besucher liest |

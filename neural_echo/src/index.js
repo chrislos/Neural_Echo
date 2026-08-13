@@ -101,6 +101,8 @@ const SPRACHEN = {
   DE: {
     ordner:       '/voices/DE/',
     pegelS1Links: 1, // "Hey, hier bin ich" – kommt von der Seite
+    pegelS2Teil1: 2, // "Jetzt bist du ja schon Profi…" – nach Gehör angehoben
+    pegelS2Teil2: 4, // "Hier links hörst du…" – kommt von links
     pegelS2Teil3: 4, // "Um dessen Komplexität…" – spricht aus 6 Metern
     pegelS2Ende:  6, // "Hör zum Schluss…" – liegt über der ganzen Szene
     hinweis:      'setz die Kopfhörer auf … · r = reset',
@@ -110,6 +112,8 @@ const SPRACHEN = {
     // Durchhören der englischen Fassung werden sie nachgezogen.
     ordner:       '/voices/EN/',
     pegelS1Links: 1,
+    pegelS2Teil1: 2,
+    pegelS2Teil2: 4,
     pegelS2Teil3: 4,
     pegelS2Ende:  6,
     hinweis:      'put on the headphones … · r = reset',
@@ -1204,7 +1208,7 @@ async function initAudio() {
   stimme.s2Ende   = new Tone.Player(DATEIEN.s2Stimme4).connect(stimmQuelle.input);
   stimme.s3       = new Tone.Player(DATEIEN.s3Stimme1).connect(stimmQuelle.input);
 
-  // Drei Ansagen brauchen eine Korrektur nach oben. Die Zahlen stehen nicht
+  // Fünf Ansagen brauchen eine Korrektur nach oben. Die Zahlen stehen nicht
   // hier, sondern in der Sprachtabelle in TEIL 1: Sie hängen an der jeweiligen
   // AUFNAHME, und die englische Sprecherin ist anders eingesprochen als die
   // deutsche. Der Grund für die Korrektur ist aber in beiden Sprachen derselbe
@@ -1216,9 +1220,16 @@ async function initAudio() {
   // weil sie von der Seite kommt und dort weniger präsent wirkt.
   stimme.s1Links.volume.value = sprache.pegelS1Links;
 
-  // Zwei Ansagen in Szene 2 mussten nachgezogen werden – beide, weil neben
-  // ihnen etwas anderes im Vordergrund steht:
+  // In Szene 2 mussten alle vier Ansagen nachgezogen werden – jede, weil neben
+  // ihr etwas anderes im Vordergrund steht. Szene 2 ist die vollste Szene:
+  // Unter den Ansagen laufen durchgehend ZWEI Ambisonics-Betten plus der Fink.
   //
+  //   "Jetzt bist du ja schon Profi…"  faengt noch in Szene 1 an und laeuft in
+  //                             Szene 2 hinein – ab da liegt das zweite
+  //                             Natur-Bett darunter.
+  //   "Hier links hörst du…"    kommt von links. Eine Stimme von der Seite
+  //                             wirkt weniger präsent als eine von vorn, genau
+  //                             wie die Ansage in Szene 1 (pegelS1Links).
   //   "Um dessen Komplexität…"  spricht aus 6 Metern von links, doppelt so weit
   //                             weg wie die übrigen Ansagen. Resonance macht
   //                             Entferntes leiser, das holen wir hier zurück.
@@ -1226,8 +1237,14 @@ async function initAudio() {
   //                             FX-Bett und der ausfadende Fink. Dagegen muss
   //                             sie sich durchsetzen, sonst überhört man sie.
   //
+  // Die genauen Zahlen sind am Ohr entstanden, nicht gerechnet – die Gründe
+  // oben erklären, warum es überhaupt eine Korrektur braucht, nicht warum es
+  // gerade 2 oder 4 sind.
+  //
   // Die Zahlen sind DEZIBEL (Tone.js rechnet hier in dB, nicht in Faktoren):
   // +6 dB ist ungefähr doppelt so laut empfunden, +4 dB deutlich hörbar mehr.
+  stimme.s2Teil1.volume.value  = sprache.pegelS2Teil1;
+  stimme.s2Links1.volume.value = sprache.pegelS2Teil2;
   stimme.s2Links2.volume.value = sprache.pegelS2Teil3;
   stimme.s2Ende.volume.value   = sprache.pegelS2Ende;
 
