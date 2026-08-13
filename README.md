@@ -3,10 +3,9 @@
 Eine binaurale Hör-Erfahrung mit Headtracking. Man setzt Kopfhörer auf, dreht
 den Kopf – und der Klang reagiert darauf, als stünde man wirklich in dem Raum.
 
-Entstanden im Rahmen eines Kurses an der **Hochschule für Musik Trossingen**
+Entstanden im Rahmen eines Kurses an der **Staatlichen Hochschule für Musik Trossingen**
 für das **Futurium Berlin**. Der Code ist bewusst als Lehr-Codebase geschrieben:
-deutsche Kommentare, die das WARUM erklären, flache Struktur, keine Abkürzungen –
-Sechzehnjährige sollen ihn von oben nach unten lesen können.
+deutsche Kommentare, die das WARUM erklären, flache Struktur, keine Abkürzungen...
 
 In der Ausstellung läuft das Ganze ohne Personal: Der Rechner startet die
 Experience beim Login von selbst, sie beginnt, sobald jemand den Kopfhörer
