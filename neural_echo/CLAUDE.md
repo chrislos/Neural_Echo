@@ -95,9 +95,13 @@ start.sh       – exhibition launcher. Order matters: the bridge must answer on
                  port 8080 BEFORE Chrome loads the page, because index.js opens
                  the WebSocket exactly once and never retries.
 watchdog_airpods.sh + tools/blueutil
-               – reconnects the AirPods Max when they power themselves off and
-                 re-forces system volume on every check. The BT address is
-                 hardcoded at the top and is per-device.
+               – reconnects the AirPods Max when they power themselves off
+                 (INTERVALL, 10s) and re-forces system volume on a separate,
+                 faster tick (LAUTSTAERKE_INTERVALL, 2s) so a visitor putting on
+                 freshly reconnected AirPods never starts out too quiet. Volume
+                 is only touched while CONNECTED – otherwise output has fallen
+                 back to the built-in speakers. The BT address is hardcoded at
+                 the top and is per-device.
 ```
 
 ## Bilingual (DE/EN)

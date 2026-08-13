@@ -41,8 +41,25 @@ LANGE_PAUSE=60
 # AirPods verbunden sind. Warum ueberhaupt noetig: macOS merkt sich pro Geraet
 # eine eigene Lautstaerke und stellt sie manchmal erst ein paar Sekunden NACH
 # dem Verbindungsaufbau wieder her – einmaliges Setzen direkt beim Connect
-# reicht deshalb nicht, es muss bei jeder Pruefung erneut gesetzt werden.
+# reicht deshalb nicht, es muss immer wieder gesetzt werden.
 LAUTSTAERKE_ZIEL=100
+
+# Wie oft die Lautstaerke nachgesetzt wird (Sekunden). Bewusst viel haeufiger
+# als INTERVALL: der Bluetooth-Check darf selten sein, die Lautstaerke muss
+# schnell stimmen. Setzt sich ein Besucher direkt nach einem Reconnect die
+# AirPods auf, faengt die Erfahrung sonst mit dem leisen Pegel an, den macOS
+# sich fuer dieses Geraet gemerkt hat.
+#
+# Das kostet nichts: steht die Lautstaerke schon auf dem Ziel, passiert nichts –
+# kein Klick, keine Unterbrechung, kein Rueckmeldeton.
+#
+# 0 schaltet das Nachsetzen ganz ab. Das braucht man beim Einpegeln von Hand,
+# sonst dreht das Script sofort wieder hoch.
+#
+# Am besten ein Wert, durch den INTERVALL glatt teilbar ist – sonst wird die
+# Wartezeit bis zur naechsten Verbindungspruefung etwas laenger (bei 3s: 12
+# statt 10 Sekunden). Schadet nichts, ist nur gut zu wissen.
+LAUTSTAERKE_INTERVALL=2
 
 # ─────────────────────────────────────────────────────────────
 # WAS AN DIESEM RECHNER ANDERS IST
@@ -74,10 +91,33 @@ melde() {
 }
 
 # Erzwingt die Ziel-Lautstaerke ueber osascript. Kein Fehler-Handling noetig:
-# schlaegt es mal fehl (z.B. kein Login-Session-Kontext), wird es bei der
-# naechsten Pruefung ohnehin wieder versucht.
+# schlaegt es mal fehl (z.B. kein Login-Session-Kontext), wird es gleich
+# ohnehin wieder versucht.
+#
+# Die zweite Zeile hebt eine Stummschaltung auf: "output volume 100" allein tut
+# das NICHT, ein stummer Mac bliebe also stumm – und von aussen sieht das aus
+# wie ein kaputter Kopfhoerer.
 setze_lautstaerke() {
-  osascript -e "set volume output volume $LAUTSTAERKE_ZIEL" >/dev/null 2>&1
+  osascript -e "set volume output volume $LAUTSTAERKE_ZIEL" \
+            -e "set volume without output muted" >/dev/null 2>&1
+}
+
+# Wartet bis zur naechsten Verbindungspruefung und haelt dabei die Lautstaerke
+# oben. Wird nur aufgerufen, wenn die AirPods verbunden sind – bei getrennten
+# AirPods faellt die Ausgabe auf die eingebauten Lautsprecher zurueck, und die
+# wuerden wir sonst auf volle Lautstaerke stellen.
+warte_und_halte_lautstaerke() {
+  if [ "$LAUTSTAERKE_INTERVALL" -le 0 ]; then
+    sleep "$INTERVALL"
+    return
+  fi
+
+  rest="$INTERVALL"
+  while [ "$rest" -gt 0 ]; do
+    setze_lautstaerke
+    sleep "$LAUTSTAERKE_INTERVALL"
+    rest=$((rest - LAUTSTAERKE_INTERVALL))
+  done
 }
 
 # ─────────────────────────────────────────────────────────────
@@ -120,7 +160,7 @@ if ! "$BLUEUTIL" --paired | grep -qi "$AIRPODS"; then
   exit 1
 fi
 
-melde "Watchdog laeuft. Pruefe alle ${INTERVALL}s."
+melde "Watchdog laeuft. Verbindung alle ${INTERVALL}s, Lautstaerke alle ${LAUTSTAERKE_INTERVALL}s."
 
 # ─────────────────────────────────────────────────────────────
 # DIE SCHLEIFE
@@ -141,9 +181,9 @@ while true; do
     war_verbunden=1
     fehler=0
 
-    # Bei jeder Pruefung erneut setzen, nicht nur einmal beim Connect – siehe
-    # Begruendung bei LAUTSTAERKE_ZIEL weiter oben.
-    setze_lautstaerke
+    # Warten bis zur naechsten Pruefung – und dabei laufend die Lautstaerke
+    # nachsetzen, nicht nur einmal beim Connect (siehe LAUTSTAERKE_ZIEL oben).
+    warte_und_halte_lautstaerke
 
   else
 
@@ -163,7 +203,7 @@ while true; do
       # Audio-Ausgang bereitstehen. Ohne das spielt der Ton kurz ueber die
       # eingebauten Lautsprecher.
       sleep 3
-      setze_lautstaerke
+      warte_und_halte_lautstaerke
     else
       fehler=$((fehler + 1))
       melde "Verbindung fehlgeschlagen (Versuch $fehler)."
@@ -174,8 +214,10 @@ while true; do
         sleep "$LANGE_PAUSE"
         fehler=0
       fi
+
+      # Getrennte AirPods: hier nur warten. Die Lautstaerke lassen wir in Ruhe,
+      # solange der Ton auf den eingebauten Lautsprechern liegt.
+      sleep "$INTERVALL"
     fi
   fi
-
-  sleep "$INTERVALL"
 done

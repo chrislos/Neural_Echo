@@ -365,8 +365,20 @@ einer unbeaufsichtigten Ausstellung sonst den Betrieb beenden:
   Kopfhörer im Tiefschlaf, hilft Wiederholen nicht, sie müssen erst bewegt
   werden.
 - **macOS merkt sich pro Gerät eine eigene Lautstärke** und stellt sie manchmal
-  erst Sekunden nach dem Verbinden wieder her. Deshalb wird die Lautstärke bei
-  *jeder* Prüfung neu gesetzt, nicht nur einmal beim Verbinden.
+  erst Sekunden nach dem Verbinden wieder her. Deshalb wird die Lautstärke nicht
+  nur einmal beim Verbinden gesetzt, sondern **alle 2 Sekunden** nachgezogen –
+  in einem eigenen, schnelleren Takt als die Verbindungsprüfung. Sonst kann ein
+  Besucher, der die gerade neu verbundenen Kopfhörer sofort aufsetzt, die ersten
+  Sekunden zu leise hören. Eine Stummschaltung wird dabei mit aufgehoben.
+
+  Der Takt steht im Watchdog bei `LAUTSTAERKE_INTERVALL`. **Beim Einpegeln von
+  Hand auf 0 setzen** (oder den Watchdog beenden) – sonst dreht das Script jedes
+  Leiserdrehen sofort wieder hoch. Die Lautstärke der App selbst ist davon nicht
+  betroffen: der Watchdog fasst nur die Systemausgabe an, gemischt wird im
+  Browser.
+
+  Bei *getrennten* AirPods bleibt die Lautstärke unangetastet – der Ton liegt
+  dann auf den eingebauten Lautsprechern, und die soll niemand auf 100 finden.
 
 Das Werkzeug dahinter ist `blueutil` und liegt fertig in `tools/` – auf einem
 Apple-Silicon-Mac ist nichts zu installieren. Auf einem Intel-Mac braucht es
