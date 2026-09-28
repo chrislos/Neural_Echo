@@ -2280,7 +2280,20 @@ initAudio()
 
 async function beimErstenKlick() {
   try {
-    await initAudio();
+    // Dieser Klick ist die Geste, auf die der Browser gewartet hat.
+    //
+    // Wichtig: Das resume() in initAudio() (TEIL 6) lief schon VOR dieser
+    // Geste los. Ein so früh gestartetes resume() weckt Chrome nicht von
+    // allein auf – sein Versprechen bleibt einfach für immer offen, und das
+    // Laden dahinter kommt nie in Gang. Der Aufruf hier unten hilft dagegen
+    // nicht: initAudio() steigt beim zweiten Mal sofort wieder aus.
+    //
+    // Also wecken wir die Zentrale hier noch einmal, diesmal aus dem Klick
+    // heraus. Das löst das hängende await in initAudio(), und alles Weitere
+    // läuft ganz normal.
+    if (audioCtx) await audioCtx.resume();
+
+    await initAudio(); // beim allerersten Mal: startet das Laden überhaupt
     if (audioBereit) {
       window.removeEventListener('click', beimErstenKlick);
       window.removeEventListener('keydown', beimErstenKlick);
